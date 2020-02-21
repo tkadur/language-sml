@@ -1,0 +1,4 @@
+.stack-work/
+sml-parser.cabal
+*~
+.vscode/*

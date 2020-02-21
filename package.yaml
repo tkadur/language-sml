@@ -1,0 +1,86 @@
+name: sml-parser
+version: 0.1.0.0
+github: "githubuser/sml-parser"
+license: BSD3
+author: "Author name here"
+maintainer: "example@example.com"
+copyright: "2020 Author name here"
+
+extra-source-files:
+  - README.md
+  - ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description: Please see the README on GitHub at <https://github.com/githubuser/sml-parser#readme>
+
+dependencies:
+  - base-noprelude
+  - relude
+  - megaparsec
+  - mtl
+  - parser-combinators
+  - text
+  - unordered-containers
+
+default-extensions:
+  # Basics
+  - FlexibleContexts
+  - FlexibleInstances
+  - InstanceSigs
+  - MultiParamTypeClasses
+  - ScopedTypeVariables
+  - StrictData
+    # Ergonomics
+  - LambdaCase
+  - NamedFieldPuns
+  - OverloadedStrings
+  - TupleSections
+    # Deriving
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+    # Typeclasses
+  - KindSignatures
+  - TypeOperators
+    # Fancier bois
+  - GADTs
+  - RankNTypes
+  - TypeFamilies
+    # Random stuff
+  - ApplicativeDo
+  - BangPatterns
+  - MultiWayIf
+  - NoMonomorphismRestriction
+  - TypeApplications
+
+library:
+  source-dirs: src
+
+executables:
+  sml-parser-exe:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - sml-parser
+
+tests:
+  sml-parser-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - sml-parser
