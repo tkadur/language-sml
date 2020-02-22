@@ -32,6 +32,7 @@ default-extensions:
   # Basics
   - FlexibleContexts
   - FlexibleInstances
+  - GeneralizedNewtypeDeriving
   - InstanceSigs
   - MultiParamTypeClasses
   - ScopedTypeVariables
@@ -62,6 +63,8 @@ default-extensions:
 
 library:
   source-dirs: src
+  ghc-options:
+    - -Wall
 
 executables:
   sml-parser-exe:
