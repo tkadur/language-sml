@@ -2,4 +2,4 @@ module Ast.Ident where
 
 newtype Ident
     = Ident Text
-    deriving (Show)
+    deriving (Eq, Hashable, Ord, Show)

@@ -1,10 +1,20 @@
 module Ast.Decl where
 
 import           Ast.Expr                       ( Expr )
-import qualified Ast.Expr                      as Expr
+import           Ast.Ident                      ( Ident )
 import           Ast.Pat                        ( Pat )
-import qualified Ast.Pat                       as Pat
 
 data Decl
-    = Val Pat Expr
+    = Infix
+        { precedence :: Int
+        , ident :: Ident
+        }
+    | Infixr
+        { precedence :: Int
+        , ident :: Ident
+        }
+    | Val
+        { lhs :: Pat
+        , rhs :: Expr
+        }
     deriving (Show)

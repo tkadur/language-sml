@@ -1,4 +1,4 @@
-module Parser.Basic
+module Parser.Internal.Basic
     ( Parser
     , commaSeparated
     , lexeme
@@ -34,7 +34,8 @@ intLiteral :: Parser Int
 intLiteral = lexeme L.decimal
 
 stringLiteral :: Parser Text
-stringLiteral = (lexeme . fmap toText) $ C.char '"' >> M.manyTill L.charLiteral (C.char '"')
+stringLiteral =
+    (lexeme . fmap toText) $ C.char '"' >> M.manyTill L.charLiteral (C.char '"')
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme spaceConsumer
@@ -43,4 +44,5 @@ symbol :: Text -> Parser Text
 symbol = L.symbol spaceConsumer
 
 spaceConsumer :: Parser ()
-spaceConsumer = L.space C.space1 empty blockComment where blockComment = L.skipBlockComment "(*" "*)"
+spaceConsumer = L.space C.space1 empty blockComment
+    where blockComment = L.skipBlockComment "(*" "*)"
