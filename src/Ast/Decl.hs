@@ -6,12 +6,15 @@ import           Ast.Pat                        ( Pat )
 
 data Decl
     = Infix
-        { precedence :: Int
+        { precedence :: Maybe Int
         , ident :: Ident
         }
     | Infixr
-        { precedence :: Int
+        { precedence :: Maybe Int
         , ident :: Ident
+        }
+    | Nonfix
+        { ident :: Ident
         }
     | Val
         { lhs :: Pat

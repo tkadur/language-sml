@@ -3,6 +3,7 @@ module Parser.Internal.FixityTable
   , Associativity
   , Precedence
   , addOperator
+  , removeOperator
   , basisFixityTable
   , makeExprParser
   , operators
@@ -27,8 +28,10 @@ import           Parser.Internal.Basic          ( Parser
 type Associativity = Parser (Expr -> Expr -> Expr) -> E.Operator Parser Expr
 type Precedence = Int
 
+type Table = [[(Ident, E.Operator Parser Expr)]]
+
 data FixityTable = FixityTable
-    { table :: [[(Ident, E.Operator Parser Expr)]]
+    { table :: Table
     , operators :: HashSet Ident
     }
 
@@ -49,14 +52,23 @@ addOperator ident@(Ident.Ident name) associativity precedence FixityTable { tabl
   = FixityTable { table = table', operators = operators' }
  where
   table' =
+    table
     -- Remove ident from the operator table
-    let withoutIdent = filter (\(ident', _) -> ident' /= ident) <$> table
+      |> removeOperatorFromTable ident
     -- Add ident to the operator table
-    in  update precedence
-               (infixExprOperator precedence associativity name :)
-               withoutIdent
+      |> update precedence (infixExprOperator precedence associativity name :)
 
   operators' = HashSet.insert ident operators
+
+removeOperator :: Ident -> FixityTable -> FixityTable
+removeOperator ident FixityTable { table, operators } =
+  FixityTable { table = table', operators = operators' }
+ where
+  table'     = removeOperatorFromTable ident table
+  operators' = HashSet.delete ident operators
+
+removeOperatorFromTable :: Ident -> Table -> Table
+removeOperatorFromTable ident = (filter (\(ident', _) -> ident' /= ident) <$>)
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable

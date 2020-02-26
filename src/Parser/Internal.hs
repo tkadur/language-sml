@@ -30,7 +30,7 @@ topLevel = evalStateT decls FixityTable.basisFixityTable
   where decls = M.many declaration
 
 declaration :: StateT FixityTable Parser Decl
-declaration = val <|> infixrDecl <|> infixDecl
+declaration = val <|> nonfix <|> infixrDecl <|> infixDecl
  where
   val :: StateT FixityTable Parser Decl
   val = do
@@ -42,30 +42,37 @@ declaration = val <|> infixrDecl <|> infixDecl
       rhs <- expression fixityTable
       return $ Decl.Val { Decl.lhs, Decl.rhs }
 
+  nonfix :: StateT FixityTable Parser Decl
+  nonfix = do
+    ident <- lift $ do
+      reserved Reserved.Nonfix
+      rawIdentifier
+    modify $ FixityTable.removeOperator ident
+    return $ Decl.Nonfix { Decl.ident }
+
   infixrDecl :: StateT FixityTable Parser Decl
   infixrDecl = do
-    fixityTable         <- get
     (precedence, ident) <- lift $ fixityDecl Reserved.Infixr
-    put (FixityTable.addOperator ident E.InfixR precedence fixityTable)
+    modify $ FixityTable.addOperator ident E.InfixR (fromMaybe 0 precedence)
     return $ Decl.Infixr { Decl.precedence, Decl.ident }
 
   infixDecl :: StateT FixityTable Parser Decl
   infixDecl = do
-    fixityTable         <- get
     (precedence, ident) <- lift $ fixityDecl Reserved.Infix
-    put (FixityTable.addOperator ident E.InfixL precedence fixityTable)
+    modify $ FixityTable.addOperator ident E.InfixL (fromMaybe 0 precedence)
     return $ Decl.Infix { Decl.precedence, Decl.ident }
 
-  fixityDecl :: Reserved.ReservedWord -> Parser (FixityTable.Precedence, Ident)
+  fixityDecl :: Reserved.ReservedWord
+             -> Parser (Maybe FixityTable.Precedence, Ident)
   fixityDecl keyword = do
     -- M.try to avoid "infix" and "infixr" clashing
     M.try $ reserved keyword
-    precedence <- fromIntegral . fromMaybe 0 <$> M.optional decimal
+    precedence <- M.optional decimal
     ident      <- rawIdentifier
-    if not $ precedence `elem` [0 .. 9]
+    -- Precedence must either be unspecified or within [0, 9]
+    if not $ precedence `elem` (Nothing : map Just [0 .. 9])
       then fail "fixity precedence must be between 0 and 9"
-      else return $ (precedence, ident)
-
+      else return (fromIntegral <$> precedence, ident)
 
 expression :: FixityTable -> Parser Expr
 expression fixityTable = FixityTable.makeExprParser expr' fixityTable
@@ -99,8 +106,8 @@ nonfixIdentifier operators = do
 rawIdentifier :: Parser Ident
 rawIdentifier = lexeme $ do
   ident <- toText <$> (alphanumeric <|> symbolic)
-  -- Make sure the identifier isn't a reserved keyword
-  if ident `elem` Reserved.reservedTokens
+  -- Make sure the identifier isn't a reserved keyword (other than =)
+  if ident `elem` Reserved.reservedTokens && ident /= "="
     then fail $ "keyword " ++ show ident ++ " cannot be an identifier"
     else return $ Ident.Ident ident
  where
@@ -135,7 +142,7 @@ rawIdentifier = lexeme $ do
         , '@'
         , '\\'
         , '~'
-        , '‘'
+        , '`'
         , '^'
         , '|'
         , '*'
@@ -152,7 +159,6 @@ literal =
     <|> M.try (Lit.Hex <$> prefixed "0x" hexadecimal)
     <|> M.try (Lit.DecWord <$> prefixed "0w" decimal)
     <|> (Lit.Dec <$> decimal)
-    <|> (Lit.String <$> stringLiteral)
  where
   prefixed :: Text -> Parser Integer -> Parser Integer
   prefixed prefix integer = symbol prefix >> integer

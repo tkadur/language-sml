@@ -4,7 +4,7 @@ module Prelude
        )
 where
 
-import           Relude
+import           Relude                  hiding ( Op )
 import qualified Relude.Unsafe                 as Unsafe
 
 infixl 0 |>

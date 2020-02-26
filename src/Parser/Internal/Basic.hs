@@ -4,13 +4,10 @@ module Parser.Internal.Basic
     , S
     , M
     , Comments
-    , commaSeparated
     , lexeme
     , nothing
     , decimal
     , hexadecimal
-    , parens
-    , stringLiteral
     , symbol
     )
 where
@@ -35,21 +32,11 @@ type Parser = M.ParsecT E S M
 nothing :: Parser ()
 nothing = Monad.void $ symbol ""
 
-parens :: Parser a -> Parser a
-parens = M.between (symbol "(") (symbol ")")
-
-commaSeparated :: Parser a -> Parser [a]
-commaSeparated = (`M.sepBy` (lexeme . C.char) ',')
-
 decimal :: Parser Integer
 decimal = lexeme L.decimal
 
 hexadecimal :: Parser Integer
 hexadecimal = lexeme L.hexadecimal
-
-stringLiteral :: Parser Text
-stringLiteral =
-    (lexeme . fmap toText) $ C.char '"' >> M.manyTill L.charLiteral (C.char '"')
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme spaceConsumer
