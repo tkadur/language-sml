@@ -1,9 +1,14 @@
 module Parser.Internal.Basic
     ( Parser
+    , E
+    , S
+    , M
+    , Comments
     , commaSeparated
     , lexeme
     , nothing
-    , intLiteral
+    , decimal
+    , hexadecimal
     , parens
     , stringLiteral
     , symbol
@@ -17,9 +22,15 @@ import qualified Text.Megaparsec.Char          as C
 import qualified Text.Megaparsec.Char.Lexer    as L
 
 type Comments = [M.SourcePos]
+
+-- Error
+type E = Void
+-- Stream
+type S = Text
+-- Underlying monad
 type M = Writer Comments
 
-type Parser = M.ParsecT Void Text M
+type Parser = M.ParsecT E S M
 
 nothing :: Parser ()
 nothing = Monad.void $ symbol ""
@@ -30,8 +41,11 @@ parens = M.between (symbol "(") (symbol ")")
 commaSeparated :: Parser a -> Parser [a]
 commaSeparated = (`M.sepBy` (lexeme . C.char) ',')
 
-intLiteral :: Parser Int
-intLiteral = lexeme L.decimal
+decimal :: Parser Integer
+decimal = lexeme L.decimal
+
+hexadecimal :: Parser Integer
+hexadecimal = lexeme L.hexadecimal
 
 stringLiteral :: Parser Text
 stringLiteral =

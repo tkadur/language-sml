@@ -3,28 +3,28 @@ module Parser.Internal.Reserved where
 class Reserved a where
   text :: a -> Text
 
-data ReservedWords
+data ReservedWord
     = Infix
     | Infixr
     | Val
     deriving (Show, Enum)
 
-data ReservedOps
+data ReservedOp
     = Equal
     deriving (Show, Enum)
 
-instance Reserved ReservedWords where
+instance Reserved ReservedWord where
   text = \case
     Infix  -> "infix"
     Infixr -> "infixr"
     Val    -> "val"
 
-instance Reserved ReservedOps where
+instance Reserved ReservedOp where
   text = \case
     Equal -> "="
 
 reservedTokens :: [Text]
 reservedTokens = reservedWords ++ reservedOps
  where
-  reservedWords = text <$> enumFrom (toEnum 0 :: ReservedWords)
-  reservedOps   = text <$> enumFrom (toEnum 0 :: ReservedOps)
+  reservedWords = text <$> enumFrom (toEnum 0 :: ReservedWord)
+  reservedOps   = text <$> enumFrom (toEnum 0 :: ReservedOp)

@@ -7,16 +7,15 @@ import qualified Data.HashSet                  as HashSet
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Char          as C
 
-import           Ast                            ( Decl
-                                                , Expr
-                                                , Ident
-                                                , Lit
-                                                , Pat
-                                                )
+import           Ast.Decl                       ( Decl )
 import qualified Ast.Decl                      as Decl
+import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
+import           Ast.Ident                      ( Ident )
 import qualified Ast.Ident                     as Ident
+import           Ast.Lit                        ( Lit )
 import qualified Ast.Lit                       as Lit
+import           Ast.Pat                        ( Pat )
 import qualified Ast.Pat                       as Pat
 import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
@@ -57,11 +56,11 @@ declaration = val <|> infixrDecl <|> infixDecl
     put (FixityTable.addOperator ident E.InfixL precedence fixityTable)
     return $ Decl.Infix { Decl.precedence, Decl.ident }
 
-  fixityDecl :: (Reserved r) => r -> Parser (FixityTable.Precedence, Ident)
+  fixityDecl :: Reserved.ReservedWord -> Parser (FixityTable.Precedence, Ident)
   fixityDecl keyword = do
     -- M.try to avoid "infix" and "infixr" clashing
     M.try $ reserved keyword
-    precedence <- fromMaybe 0 <$> M.optional intLiteral
+    precedence <- fromIntegral . fromMaybe 0 <$> M.optional decimal
     ident      <- rawIdentifier
     if not $ precedence `elem` [0 .. 9]
       then fail "fixity precedence must be between 0 and 9"
@@ -84,7 +83,7 @@ pattern fixityTable = lit <|> var
  where
   lit       = Pat.Lit <$> literal
   var       = Pat.Var <$> nonfixIdentifier operators
-  --
+
   operators = FixityTable.operators fixityTable
 
 -- Parses an identifier which must be nonfixed
@@ -105,20 +104,55 @@ rawIdentifier = lexeme $ do
     then fail $ "keyword " ++ show ident ++ " cannot be an identifier"
     else return $ Ident.Ident ident
  where
-  underscore = C.char '_'
   -- Alphanumeric identifiers
   alphanumeric =
     (:)
-          -- The first character must be a letter or underscore
-      <$> (C.letterChar <|> underscore)
-          -- The remaining characters can be alphanumeric or underscores
-      <*> M.many (C.alphaNumChar <|> underscore)
+      -- The first character must be a letter or underscore
+      <$> (C.letterChar <|> prime)
+      -- The remaining characters can be alphanumeric or underscores
+      <*> M.many (C.alphaNumChar <|> underscore <|> prime)
+  underscore = C.char '_'
+  prime      = C.char '\''
 
   -- Symbolic identifiers
-  symbolic = some (C.symbolChar <|> underscore)
+  symbolic   = some symbolChar
+  symbolChar = foldl1'
+    (<|>)
+    (   C.char
+    <$> [ '!'
+        , '%'
+        , '&'
+        , '$'
+        , '#'
+        , '+'
+        , '-'
+        , '/'
+        , ':'
+        , '<'
+        , '='
+        , '>'
+        , '?'
+        , '@'
+        , '\\'
+        , '~'
+        , '‘'
+        , '^'
+        , '|'
+        , '*'
+        ]
+    )
 
-reserved :: Reserved a => a -> Parser ()
+reserved :: Reserved r => r -> Parser ()
 reserved = Monad.void . symbol . Reserved.text
 
 literal :: Parser Lit
-literal = (Lit.Int <$> intLiteral) <|> (Lit.String <$> stringLiteral)
+literal =
+  -- M.try for common prefixes
+  M.try (Lit.HexWord <$> prefixed "0wx" hexadecimal)
+    <|> M.try (Lit.Hex <$> prefixed "0x" hexadecimal)
+    <|> M.try (Lit.DecWord <$> prefixed "0w" decimal)
+    <|> (Lit.Dec <$> decimal)
+    <|> (Lit.String <$> stringLiteral)
+ where
+  prefixed :: Text -> Parser Integer -> Parser Integer
+  prefixed prefix integer = symbol prefix >> integer

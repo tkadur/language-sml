@@ -15,10 +15,9 @@ import           Data.HashSet                   ( HashSet )
 import qualified Data.HashSet                  as HashSet
 import           Relude.Unsafe                  ( (!!) )
 
-import           Ast                            ( Expr
-                                                , Ident
-                                                )
+import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
+import           Ast.Ident                      ( Ident )
 import qualified Ast.Ident                     as Ident
 import           Parser.Internal.Basic          ( Parser
                                                 , nothing
@@ -54,21 +53,21 @@ addOperator ident@(Ident.Ident name) associativity precedence FixityTable { tabl
     let withoutIdent = filter (\(ident', _) -> ident' /= ident) <$> table
     -- Add ident to the operator table
     in  update precedence
-               (\ops -> infixExprOperator associativity name : ops)
+               (infixExprOperator precedence associativity name :)
                withoutIdent
 
   operators' = HashSet.insert ident operators
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
-  { table     = [ infixExprOperator E.InfixL <$> (basisOperators !! 0)
+  { table     = [ infixExprOperator 0 E.InfixL <$> (basisOperators !! 0)
                 , []
                 , []
-                , infixExprOperator E.InfixL <$> (basisOperators !! 3)
-                , infixExprOperator E.InfixL <$> (basisOperators !! 4)
-                , infixExprOperator E.InfixR <$> (basisOperators !! 5)
-                , infixExprOperator E.InfixL <$> (basisOperators !! 6)
-                , infixExprOperator E.InfixL <$> (basisOperators !! 7)
+                , infixExprOperator 3 E.InfixL <$> (basisOperators !! 3)
+                , infixExprOperator 4 E.InfixL <$> (basisOperators !! 4)
+                , infixExprOperator 5 E.InfixR <$> (basisOperators !! 5)
+                , infixExprOperator 6 E.InfixL <$> (basisOperators !! 6)
+                , infixExprOperator 7 E.InfixL <$> (basisOperators !! 7)
                 , []
                 , []
                   -- Application
@@ -120,10 +119,16 @@ basisFixityTable = FixityTable
     , []
     ]
 
-infixExprOperator :: Associativity -> Text -> (Ident, E.Operator Parser Expr)
-infixExprOperator operator name =
+infixExprOperator :: Precedence
+                  -> Associativity
+                  -> Text
+                  -> (Ident, E.Operator Parser Expr)
+infixExprOperator precedence operator name =
   (Ident.Ident name, operator (expr <$ separator))
  where
   separator = symbol name
-  expr lhs rhs =
-    Expr.InfixApp { Expr.lhs, Expr.op = Ident.Ident name, Expr.rhs }
+  expr lhs rhs = Expr.InfixApp { Expr.lhs
+                               , Expr.op         = Ident.Ident name
+                               , Expr.precedence
+                               , Expr.rhs
+                               }
