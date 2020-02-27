@@ -1,8 +1,8 @@
 module Ast.Decl where
 
 import           Ast.Expr                       ( Expr )
-import           Ast.Ident                      ( Ident )
 import           Ast.Pat                        ( Pat )
+import           Ast.Ident.Ident                ( Ident )
 
 data Decl
     = Infix

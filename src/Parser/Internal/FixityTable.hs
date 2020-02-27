@@ -2,10 +2,12 @@ module Parser.Internal.FixityTable
   ( FixityTable()
   , Associativity
   , Precedence
+  , Operators
+  , Infixable(..)
   , addOperator
   , removeOperator
   , basisFixityTable
-  , makeExprParser
+  , makeParser
   , operators
   )
 where
@@ -17,37 +19,61 @@ import           Relude.Unsafe                  ( (!!) )
 
 import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
-import           Ast.Ident                      ( Ident )
-import qualified Ast.Ident                     as Ident
+import           Ast.Pat                        ( Pat )
+import qualified Ast.Pat                       as Pat
+import           Ast.Ident.Ident                ( Ident )
+import qualified Ast.Ident.Ident               as Ident
 import           Parser.Internal.Basic          ( Parser
                                                 , nothing
                                                 , symbol
                                                 )
 
 
-type Associativity = Parser (Expr -> Expr -> Expr) -> E.Operator Parser Expr
+type Associativity = forall a . Parser (a -> a -> a) -> E.Operator Parser a
 
 type Precedence = Int
 
-type Table = [[(Ident, E.Operator Parser Expr)]]
+type TableEntry = (Ident, E.Operator Parser Pat, E.Operator Parser Expr)
+type Table = [[TableEntry]]
+
+type Operators = HashSet Ident
 
 data FixityTable = FixityTable
-    { table :: Table
-    , operators :: HashSet Ident
-    }
+  { table :: Table
+  , operators :: Operators
+  }
 
-makeExprParser :: Parser Expr -> FixityTable -> Parser Expr
-makeExprParser expression FixityTable { table } =
+data Infixable a where
+  Pat ::Infixable Pat
+  Expr ::Infixable Expr
+
+makeParser :: Infixable a -> Parser a -> FixityTable -> Parser a
+makeParser infixable parser FixityTable { table } =
   table
-    |> stripIdents
+    |> getTable infixable
     -- We store the table in ascending precedence order,
     -- but E.makeExprParser expects it in descending order
     |> reverse
-    |> E.makeExprParser expression
+    |> E.makeExprParser parser
+
+getTable :: Infixable a -> Table -> [[E.Operator Parser a]]
+getTable infixable = case infixable of
+  Pat  -> getPatTable
+  Expr -> getExprTable
  where
-  stripIdents :: [[(Ident, E.Operator Parser Expr)]]
-              -> [[E.Operator Parser Expr]]
-  stripIdents = fmap . fmap $ snd
+  getPatTable :: Table -> [[E.Operator Parser Pat]]
+  getPatTable =
+    -- Patterns cannot contain infix "="
+    removeOperatorFromTable (Ident.Ident "=")
+      >>> (liftTable $ \(_, patTable, _) -> patTable)
+
+
+  getExprTable :: Table -> [[E.Operator Parser Expr]]
+  getExprTable = (liftTable $ \(_, _, exprTable) -> exprTable)
+
+  -- | Lifts a function over `TableEntry`s to a function over `Table`s
+  liftTable :: (TableEntry -> a) -> (Table -> [[a]])
+  liftTable = fmap . fmap
 
 addOperator :: Ident
             -> Associativity
@@ -75,7 +101,8 @@ removeOperator ident FixityTable { table, operators } = FixityTable
   operators' = HashSet.delete ident operators
 
 removeOperatorFromTable :: Ident -> Table -> Table
-removeOperatorFromTable ident = map $ filter (\(ident', _) -> ident' /= ident)
+removeOperatorFromTable ident =
+  map $ filter (\(ident', _, _) -> ident' /= ident)
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
@@ -91,8 +118,13 @@ basisFixityTable = FixityTable
                 , []
                   -- Application
                 , let separator = nothing
+                      pat lhs rhs = Pat.App { Pat.lhs, Pat.rhs }
                       expr lhs rhs = Expr.App { Expr.lhs, Expr.rhs }
-                  in  [(Ident.Ident "", E.InfixL (expr <$ separator))]
+                  in  [ ( Ident.Ident ""
+                        , E.InfixL (pat <$ separator)
+                        , E.InfixL (expr <$ separator)
+                        )
+                      ]
                 ]
   , operators = HashSet.fromList $ map Ident.Ident (concat basisOperators)
   }
@@ -138,16 +170,20 @@ basisFixityTable = FixityTable
     , []
     ]
 
-infixExprOperator :: Precedence
-                  -> Associativity
-                  -> Text
-                  -> (Ident, E.Operator Parser Expr)
+infixExprOperator :: Precedence -> Associativity -> Text -> TableEntry
 infixExprOperator precedence operator name =
-  (Ident.Ident name, operator (expr <$ separator))
+  (Ident.Ident name, operator (pat <$ separator), operator (expr <$ separator))
  where
   separator = symbol name
+
   expr lhs rhs = Expr.InfixApp { Expr.lhs
                                , Expr.op         = Ident.Ident name
                                , Expr.precedence
                                , Expr.rhs
                                }
+
+  pat lhs rhs = Pat.InfixApp { Pat.lhs
+                             , Pat.op         = Ident.Ident name
+                             , Pat.precedence
+                             , Pat.rhs
+                             }

@@ -1,12 +1,12 @@
 module Ast.Expr where
 
-import           Ast.Ident                      ( Ident )
+import           Ast.Ident.Ident                ( Ident )
+import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
-import           Parser.Marked                  ( Marked )
 
 data Expr
   = Lit Lit
-  | Var Ident
+  | Var ValueIdent
   | App
     { lhs :: Expr
     , rhs :: Expr

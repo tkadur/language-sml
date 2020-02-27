@@ -11,8 +11,10 @@ import           Ast.Decl                       ( Decl )
 import qualified Ast.Decl                      as Decl
 import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
-import           Ast.Ident                      ( Ident )
-import qualified Ast.Ident                     as Ident
+import           Ast.Ident.Ident                ( Ident )
+import qualified Ast.Ident.Ident               as Ident
+import           Ast.Ident.ValueIdent           ( ValueIdent )
+import qualified Ast.Ident.ValueIdent          as ValueIdent
 import           Ast.Lit                        ( Lit )
 import qualified Ast.Lit                       as Lit
 import           Ast.Pat                        ( Pat )
@@ -22,8 +24,6 @@ import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Reserved       ( Reserved )
 import qualified Parser.Internal.Reserved      as Reserved
-
-type Operators = HashSet Ident
 
 topLevel :: Parser [Decl]
 topLevel = evalStateT decls FixityTable.basisFixityTable
@@ -46,7 +46,7 @@ declaration = val <|> nonfix <|> infixrDecl <|> infixDecl
   nonfix = do
     ident <- lift $ do
       reserved Reserved.Nonfix
-      rawIdentifier
+      identifier
     modify $ FixityTable.removeOperator ident
     return $ Decl.Nonfix { Decl.ident }
 
@@ -68,43 +68,50 @@ declaration = val <|> nonfix <|> infixrDecl <|> infixDecl
     -- M.try to avoid "infix" and "infixr" clashing
     M.try $ reserved keyword
     precedence <- M.optional decimal
-    ident      <- rawIdentifier
+    ident      <- identifier
     -- Precedence must either be unspecified or within [0, 9]
     if not $ precedence `elem` (Nothing : map Just [0 .. 9])
       then fail "fixity precedence must be between 0 and 9"
       else return (fromIntegral <$> precedence, ident)
 
 expression :: FixityTable -> Parser Expr
-expression fixityTable = FixityTable.makeExprParser expr' fixityTable
+expression fixityTable = FixityTable.makeParser FixityTable.Expr
+                                                expression'
+                                                fixityTable
  where
-  expr'     = lit <|> var
+  expression' = lit <|> var
 
-  lit       = Expr.Lit <$> literal
+  lit         = Expr.Lit <$> literal
   -- M.try to prevent failure from trying to parse infix operator as identifier
-  var       = Expr.Var <$> M.try (nonfixIdentifier operators)
+  var         = M.try (Expr.Var <$> valueIdentifier operators)
 
-  operators = FixityTable.operators fixityTable
+  operators   = FixityTable.operators fixityTable
 
 pattern :: FixityTable -> Parser Pat
-pattern fixityTable = lit <|> var
+pattern fixityTable = FixityTable.makeParser FixityTable.Pat
+                                             pattern'
+                                             fixityTable
  where
+  pattern'  = lit <|> var
+
   lit       = Pat.Lit <$> literal
-  var       = Pat.Var <$> nonfixIdentifier operators
+  -- M.try to prevent failure from trying to parse infix operator as identifier
+  var       = M.try (Pat.Var <$> valueIdentifier operators)
 
   operators = FixityTable.operators fixityTable
 
--- Parses an identifier which must be nonfixed
-nonfixIdentifier :: Operators -> Parser Ident
-nonfixIdentifier operators = do
-  ident <- rawIdentifier
-  if ident `HashSet.member` operators
-    then
-      fail $ "prefix identifier " ++ show ident ++ " appears in nonfix context"
-    else return ident
+-- | Will only parse identifiers that are not infixed
+valueIdentifier :: FixityTable.Operators -> Parser ValueIdent
+valueIdentifier operators = ident
+ where
+  ident = do
+    x <- identifier
+    if x `HashSet.member` operators
+      then fail $ "unexpected infix identifier " ++ show x
+      else return $ ValueIdent.fromIdent x
 
--- Parses anything which could be an identifier
-rawIdentifier :: Parser Ident
-rawIdentifier = lexeme $ do
+identifier :: Parser Ident
+identifier = lexeme $ do
   ident <- toText <$> (alphanumeric <|> symbolic)
   -- Make sure the identifier isn't a reserved keyword (other than =)
   if ident `elem` Reserved.reservedTokens && ident /= "="
