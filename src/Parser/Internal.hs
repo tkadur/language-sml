@@ -1,6 +1,7 @@
 module Parser.Internal where
 
 import qualified Control.Monad                 as Monad
+import           Control.Monad.Combinators      ( choice )
 import qualified Control.Monad.Combinators.Expr
                                                as E
 import qualified Data.HashSet                  as HashSet
@@ -30,7 +31,7 @@ topLevel = evalStateT decls FixityTable.basisFixityTable
   where decls = M.many declaration
 
 declaration :: StateT FixityTable Parser Decl
-declaration = val <|> nonfix <|> infixrDecl <|> infixDecl
+declaration = choice [val, nonfix, infixrDecl, infixDecl]
  where
   val :: StateT FixityTable Parser Decl
   val = do
@@ -79,7 +80,7 @@ expression fixityTable = FixityTable.makeParser FixityTable.Expr
                                                 expression'
                                                 fixityTable
  where
-  expression' = lit <|> var
+  expression' = choice [lit, var]
 
   lit         = Expr.Lit <$> literal
   -- M.try to prevent failure from trying to parse infix operator as identifier
@@ -92,7 +93,7 @@ pattern fixityTable = FixityTable.makeParser FixityTable.Pat
                                              pattern'
                                              fixityTable
  where
-  pattern'  = lit <|> var
+  pattern'  = choice [lit, var]
 
   lit       = Pat.Lit <$> literal
   -- M.try to prevent failure from trying to parse infix operator as identifier
@@ -130,43 +131,42 @@ identifier = lexeme $ do
 
   -- Symbolic identifiers
   symbolic   = some symbolChar
-  symbolChar = foldl1'
-    (<|>)
-    (map
-      C.char
-      [ '!'
-      , '%'
-      , '&'
-      , '$'
-      , '#'
-      , '+'
-      , '-'
-      , '/'
-      , ':'
-      , '<'
-      , '='
-      , '>'
-      , '?'
-      , '@'
-      , '\\'
-      , '~'
-      , '`'
-      , '^'
-      , '|'
-      , '*'
-      ]
-    )
+  symbolChar = choice $ map
+    C.char
+    [ '!'
+    , '%'
+    , '&'
+    , '$'
+    , '#'
+    , '+'
+    , '-'
+    , '/'
+    , ':'
+    , '<'
+    , '='
+    , '>'
+    , '?'
+    , '@'
+    , '\\'
+    , '~'
+    , '`'
+    , '^'
+    , '|'
+    , '*'
+    ]
+
 
 reserved :: Reserved r => r -> Parser ()
 reserved = Monad.void . symbol . Reserved.text
 
 literal :: Parser Lit
-literal =
+literal = choice
   -- M.try for common prefixes
-  M.try (Lit.HexWord <$> prefixed "0wx" hexadecimal)
-    <|> M.try (Lit.Hex <$> prefixed "0x" hexadecimal)
-    <|> M.try (Lit.DecWord <$> prefixed "0w" decimal)
-    <|> (Lit.Dec <$> decimal)
+  [ M.try (Lit.HexWord <$> prefixed "0wx" hexadecimal)
+  , M.try (Lit.Hex <$> prefixed "0x" hexadecimal)
+  , M.try (Lit.DecWord <$> prefixed "0w" decimal)
+  , Lit.Dec <$> decimal
+  ]
  where
   prefixed :: Text -> Parser Integer -> Parser Integer
   prefixed prefix integer = symbol prefix >> integer
