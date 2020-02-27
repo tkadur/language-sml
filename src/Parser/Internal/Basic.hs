@@ -1,15 +1,15 @@
 module Parser.Internal.Basic
-    ( Parser
-    , E
-    , S
-    , M
-    , Comments
-    , lexeme
-    , nothing
-    , decimal
-    , hexadecimal
-    , symbol
-    )
+  ( Parser
+  , E
+  , S
+  , M
+  , Comments
+  , lexeme
+  , nothing
+  , decimal
+  , hexadecimal
+  , symbol
+  )
 where
 
 import           Control.Monad.Writer.Strict    ( Writer )
@@ -22,8 +22,10 @@ type Comments = [M.SourcePos]
 
 -- Error
 type E = Void
+
 -- Stream
 type S = Text
+
 -- Underlying monad
 type M = Writer Comments
 
@@ -46,4 +48,4 @@ symbol = L.symbol spaceConsumer
 
 spaceConsumer :: Parser ()
 spaceConsumer = L.space C.space1 empty blockComment
-    where blockComment = L.skipBlockComment "(*" "*)"
+  where blockComment = L.skipBlockComment "(*" "*)"

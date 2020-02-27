@@ -1,5 +1,7 @@
 module Parser.Internal.Reserved where
 
+import qualified Relude.Extra.Enum             as Enum
+
 class Reserved a where
   text :: a -> Text
 
@@ -36,7 +38,7 @@ data ReservedWord
     | With
     | Withtype
     | While
-    deriving (Show, Enum)
+    deriving (Bounded, Enum, Show)
 
 data ReservedOp
     = Lparen
@@ -54,7 +56,7 @@ data ReservedOp
     | Widearrow
     | Narrowarrow
     | Octothorpe
-    deriving (Show, Enum)
+    deriving (Bounded, Enum, Show)
 
 instance Reserved ReservedWord where
   text = \case
@@ -112,5 +114,5 @@ instance Reserved ReservedOp where
 reservedTokens :: [Text]
 reservedTokens = reservedWords ++ reservedOps
  where
-  reservedWords = text <$> enumFrom (toEnum 0 :: ReservedWord)
-  reservedOps   = text <$> enumFrom (toEnum 0 :: ReservedOp)
+  reservedWords = map text (Enum.universe @ReservedWord)
+  reservedOps   = map text (Enum.universe @ReservedOp)

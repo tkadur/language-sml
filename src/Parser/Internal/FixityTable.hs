@@ -12,7 +12,6 @@ where
 
 import qualified Control.Monad.Combinators.Expr
                                                as E
-import           Data.HashSet                   ( HashSet )
 import qualified Data.HashSet                  as HashSet
 import           Relude.Unsafe                  ( (!!) )
 
@@ -25,7 +24,9 @@ import           Parser.Internal.Basic          ( Parser
                                                 , symbol
                                                 )
 
+
 type Associativity = Parser (Expr -> Expr -> Expr) -> E.Operator Parser Expr
+
 type Precedence = Int
 
 type Table = [[(Ident, E.Operator Parser Expr)]]
@@ -37,7 +38,12 @@ data FixityTable = FixityTable
 
 makeExprParser :: Parser Expr -> FixityTable -> Parser Expr
 makeExprParser expression FixityTable { table } =
-  E.makeExprParser expression . reverse . stripIdents $ table
+  table
+    |> stripIdents
+    -- We store the table in ascending precedence order,
+    -- but E.makeExprParser expects it in descending order
+    |> reverse
+    |> E.makeExprParser expression
  where
   stripIdents :: [[(Ident, E.Operator Parser Expr)]]
               -> [[E.Operator Parser Expr]]
@@ -53,22 +59,23 @@ addOperator ident@(Ident.Ident name) associativity precedence FixityTable { tabl
  where
   table' =
     table
-    -- Remove ident from the operator table
       |> removeOperatorFromTable ident
-    -- Add ident to the operator table
+      -- Add ident to the operator table
       |> update precedence (infixExprOperator precedence associativity name :)
 
   operators' = HashSet.insert ident operators
 
 removeOperator :: Ident -> FixityTable -> FixityTable
-removeOperator ident FixityTable { table, operators } =
-  FixityTable { table = table', operators = operators' }
+removeOperator ident FixityTable { table, operators } = FixityTable
+  { table     = table'
+  , operators = operators'
+  }
  where
   table'     = removeOperatorFromTable ident table
   operators' = HashSet.delete ident operators
 
 removeOperatorFromTable :: Ident -> Table -> Table
-removeOperatorFromTable ident = (filter (\(ident', _) -> ident' /= ident) <$>)
+removeOperatorFromTable ident = map $ filter (\(ident', _) -> ident' /= ident)
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
@@ -87,7 +94,7 @@ basisFixityTable = FixityTable
                       expr lhs rhs = Expr.App { Expr.lhs, Expr.rhs }
                   in  [(Ident.Ident "", E.InfixL (expr <$ separator))]
                 ]
-  , operators = HashSet.fromList (Ident.Ident <$> concat basisOperators)
+  , operators = HashSet.fromList $ map Ident.Ident (concat basisOperators)
   }
  where
   basisOperators =
