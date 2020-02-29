@@ -19,18 +19,15 @@ where
 import qualified Control.Monad.Reader          as Reader
 import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
-import qualified Debug.Trace
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Char          as C
 import qualified Text.Megaparsec.Char.Lexer    as L
 import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 
-type Comments = [M.SourcePos]
+import           Parser.DebugLevel              ( DebugLevel )
+import qualified Parser.DebugLevel             as DebugLevel
 
-data DebugLevel
-  = Off
-  | On
-  | ForLabels [String]
+type Comments = [M.SourcePos]
 
 -- Error
 type E = Void
@@ -47,9 +44,10 @@ dbg :: (Show a) => String -> Parser a -> Parser a
 dbg label parser = do
   debug <- ask
   case debug of
-    Off -> parser
-    On  -> dbg_parser
-    ForLabels labels -> if label `elem` labels then dbg_parser else parser
+    DebugLevel.Off -> parser
+    DebugLevel.On  -> dbg_parser
+    DebugLevel.ForLabels labels ->
+      if label `elem` labels then dbg_parser else parser
   where dbg_parser = Megaparsec.Debug.dbg label parser
 
 dbgState :: (Show a, Show s) => String -> StateT s Parser a -> StateT s Parser a

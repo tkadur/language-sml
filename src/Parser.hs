@@ -2,7 +2,6 @@ module Parser
   ( module Parser.Internal
   , module Parser
   , Parser
-  , DebugLevel(..)
   )
 where
 
@@ -10,12 +9,12 @@ import qualified Control.Monad.RWS.Strict      as RWS
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Error         as E
 
+import           Parser.DebugLevel              ( DebugLevel )
 import           Parser.Internal
 import           Parser.Internal.Basic          ( Parser
                                                 , E
                                                 , S
                                                 , Comments
-                                                , DebugLevel(..)
                                                 )
 
 runParser :: Parser a
