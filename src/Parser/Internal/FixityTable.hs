@@ -16,6 +16,7 @@ import qualified Control.Monad.Combinators.Expr
                                                as E
 import qualified Data.HashSet                  as HashSet
 import           Relude.Unsafe                  ( (!!) )
+import qualified Text.Show
 
 import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
@@ -23,17 +24,14 @@ import           Ast.Pat                        ( Pat )
 import qualified Ast.Pat                       as Pat
 import           Ast.Ident.Ident                ( Ident )
 import qualified Ast.Ident.Ident               as Ident
-import           Parser.Internal.Basic          ( Parser
-                                                , nothing
-                                                , symbol
-                                                )
-
+import           Parser.Internal.Basic
 
 type Associativity = forall a . Parser (a -> a -> a) -> E.Operator Parser a
 
 type Precedence = Int
 
 type TableEntry = (Ident, E.Operator Parser Pat, E.Operator Parser Expr)
+
 type Table = [[TableEntry]]
 
 type Operators = HashSet Ident
@@ -42,6 +40,16 @@ data FixityTable = FixityTable
   { table :: Table
   , operators :: Operators
   }
+
+instance Show FixityTable where
+  show FixityTable { table, operators } =
+    (  table
+      |> liftTable (\(ident, _, _) -> ident)
+      |> map (\idents -> show idents <> "\n")
+      |> concat
+      )
+      <> show operators
+      <> "\n"
 
 data Infixable a where
   Pat ::Infixable Pat
@@ -67,13 +75,12 @@ getTable infixable = case infixable of
     removeOperatorFromTable (Ident.Ident "=")
       >>> (liftTable $ \(_, patTable, _) -> patTable)
 
-
   getExprTable :: Table -> [[E.Operator Parser Expr]]
-  getExprTable = (liftTable $ \(_, _, exprTable) -> exprTable)
+  getExprTable = liftTable $ \(_, _, exprTable) -> exprTable
 
-  -- | Lifts a function over `TableEntry`s to a function over `Table`s
-  liftTable :: (TableEntry -> a) -> (Table -> [[a]])
-  liftTable = fmap . fmap
+-- | Lifts a function over `TableEntry`s to a function over `Table`s
+liftTable :: (TableEntry -> a) -> (Table -> [[a]])
+liftTable = fmap . fmap
 
 addOperator :: Ident
             -> Associativity

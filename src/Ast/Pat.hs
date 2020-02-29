@@ -17,4 +17,5 @@ data Pat
     , precedence :: Int
     , rhs :: Pat
     }
+  | Tuple [Pat]
   deriving (Show)

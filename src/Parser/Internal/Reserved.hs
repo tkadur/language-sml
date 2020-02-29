@@ -2,15 +2,14 @@
 
 module Parser.Internal.Reserved where
 
-import           Control.Monad.Combinators
 import qualified Relude.Extra.Enum             as Enum
-import qualified Text.Megaparsec.Char          as C
-
-import           Parser.Internal.Basic          ( Parser )
 
 class Reserved a where
   text :: a -> Text
-  charSet :: Parser Char
+
+  -- | List of characters which cannot appear immediately
+  --   after the reserved symbol
+  disallowedFollowingChars :: [Char]
 
 data ReservedWord
     = Abstype
@@ -100,7 +99,8 @@ instance Reserved ReservedWord where
     Withtype  -> "withtype"
     While     -> "while"
 
-  charSet = C.letterChar
+  disallowedFollowingChars =
+    concatMap (toString . text) (Enum.universe @ReservedWord)
 
 instance Reserved ReservedOp where
   text = \case
@@ -120,12 +120,7 @@ instance Reserved ReservedOp where
     Narrowarrow -> "->"
     Octothorpe  -> "#"
 
-  charSet =
-    Enum.universe @ReservedOp
-      |> map (text >>> toString)
-      |> concat
-      |> map C.char
-      |> choice
+  disallowedFollowingChars = []
 
 reservedTokens :: [Text]
 reservedTokens = reservedWords ++ reservedOps

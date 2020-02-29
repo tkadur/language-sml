@@ -1,6 +1,5 @@
 module Parser.Internal where
 
-import qualified Control.Monad                 as Monad
 import           Control.Monad.Combinators
 import qualified Control.Monad.Combinators.Expr
                                                as E
@@ -35,10 +34,12 @@ data AllowedFixity
   = AnyFixity
   | NonfixOnly
 
+-- | Parses the toplevel
 topLevel :: Parser [Decl]
 topLevel = dbg "topLevel" $ evalStateT decls FixityTable.basisFixityTable
-  where decls = M.many declaration
+  where decls = many declaration
 
+-- | Parses a declaration
 declaration :: StateT FixityTable Parser Decl
 declaration = dbgState "declaration"
   $ choice [val, nonfix, infixrDecl, infixDecl]
@@ -85,68 +86,98 @@ declaration = dbgState "declaration"
       then fail "fixity precedence must be between 0 and 9"
       else return (fromIntegral <$> precedence, ident)
 
+-- | Parses an expression
 expression :: FixityTable -> Parser Expr
 expression fixityTable = dbg "expression"
   $ FixityTable.makeParser FixityTable.Expr expression' fixityTable
  where
-  expression' = choice [lit, var]
+  expression' = choice
+    [ lit
+    , var
+    -- M.try to prevent failure from consuming the start of a tuple
+    , M.try . parens $ expression fixityTable
+    , tup
+    ]
 
-  lit         = Expr.Lit <$> literal
+  lit = Expr.Lit <$> literal
+
   -- M.try to prevent failure from trying to parse infix operator as identifier
-  var         = M.try (Expr.Var <$> valueIdentifier operators NonfixOnly)
+  var =
+    M.try $ runReaderT (Expr.Var <$> valueIdentifier NonfixOnly) fixityTable
 
-  operators   = FixityTable.operators fixityTable
+  tup = Expr.Tuple <$> tuple (expression fixityTable)
 
+-- | Parses a pattern
 pattern :: FixityTable -> Parser Pat
 pattern fixityTable = dbg "pattern"
   $ FixityTable.makeParser FixityTable.Pat pattern' fixityTable
  where
-  pattern'  = choice [lit, var]
+  pattern' = choice
+    [ lit
+    , var
+    -- M.try to prevent failure from consuming the start of a tuple
+    , M.try . parens $ pattern fixityTable
+    , tup
+    ]
 
-  lit       = Pat.Lit <$> literal
+  lit = Pat.Lit <$> literal
+
   -- M.try to prevent failure from trying to parse infix operator as identifier
-  var       = M.try (Pat.Var <$> valueIdentifier operators NonfixOnly)
+  var = M.try (Pat.Var <$> runReaderT (valueIdentifier NonfixOnly) fixityTable)
 
-  operators = FixityTable.operators fixityTable
+  tup = Pat.Tuple <$> tuple (pattern fixityTable)
 
-valueIdentifier :: FixityTable.Operators -> AllowedFixity -> Parser ValueIdent
-valueIdentifier operators allowedFixity = dbg "valueIdentifier"
-  $ choice
-    -- M.try since will try to parse "op" as an identifier
-           [M.try longIdent, op]
+-- | @tuple p@ parses a tuple, parsing each element with @p@
+tuple :: (Show a) => Parser a -> Parser [a]
+tuple parser = dbg "tuple" $ parens (parser `sepBy` reserved Reserved.Comma)
+
+-- | Parses a possibly qualified, possible "op"-prefixed identifier
+valueIdentifier :: AllowedFixity -> ReaderT FixityTable Parser ValueIdent
+valueIdentifier allowedFixity = dbgReader "valueIdentifier"
+  -- M.try since @longIdent@ will try to parse "op" as an identifier
+  $ choice [M.try longIdent, op]
  where
   op = do
-    reserved Reserved.Op
-    ValueIdent.Op <$> valueIdentifier operators AnyFixity
+    lift $ reserved Reserved.Op
+    ValueIdent.Op <$> valueIdentifier AnyFixity
 
-  longIdent = ValueIdent.LongIdent <$> longIdentifier operators allowedFixity
+  longIdent = ValueIdent.LongIdent <$> longIdentifier allowedFixity
 
-longIdentifier :: FixityTable.Operators -> AllowedFixity -> Parser LongIdent
-longIdentifier operators allowedFixity = dbg "longIdentifier" $ choice
+-- | Parses a possibly qualified identifier
+longIdentifier :: AllowedFixity -> ReaderT FixityTable Parser LongIdent
+longIdentifier allowedFixity = dbgReader "longIdentifier" $ choice
   [qualifiedNonfix, qualifiedInfix, LongIdent.Ident <$> ident allowedFixity]
  where
   -- M.try because this could consume a valid bare identifier
-  qualifiedNonfix = dbg "qualifiedNonfix" . M.try $ do
-    idents <- sepBy2 (ident NonfixOnly) (symbol ".")
+  -- | Qualified identifier ending in a nonfixed identifier
+  qualifiedNonfix :: ReaderT FixityTable Parser LongIdent
+  qualifiedNonfix = dbgReader "qualifiedNonfix" . M.try $ do
+    idents <- sepBy2 (ident NonfixOnly) (lift $ symbol ".")
     let x          = NonEmpty.last idents
     let qualifiers = NonEmpty.take (NonEmpty.length idents - 1) idents
     return $ LongIdent.Qualified { LongIdent.qualifiers, LongIdent.ident = x }
 
   -- M.try because this could consume a valid bare identifier
-  qualifiedInfix = dbg "qualifiedInfix" . M.try $ do
+  -- | Qualified identifier ending in a infixed identifier
+  qualifiedInfix :: ReaderT FixityTable Parser LongIdent
+  qualifiedInfix = dbgReader "qualifiedInfix" . M.try $ do
     -- M.try to prevent this from trying and failing to consume the infix identifier
-    qualifiers <- endBy1 (M.try $ ident NonfixOnly) (symbol ".")
+    qualifiers <- endBy1 (M.try $ ident NonfixOnly) (lift $ symbol ".")
     x          <- ident AnyFixity
     return $ LongIdent.Qualified { LongIdent.qualifiers, LongIdent.ident = x }
 
-  ident fixityAllowed = dbg "ident" $ do
-    x <- identifier
+  -- | Bare identifier
+  ident :: AllowedFixity -> ReaderT FixityTable Parser Ident
+  ident fixityAllowed = dbgReader "ident" $ do
+    operators <- FixityTable.operators <$> ask
+    x         <- lift identifier
     case fixityAllowed of
       AnyFixity  -> return x
       NonfixOnly -> if x `HashSet.member` operators
         then fail $ "unexpected infix identifier " ++ show x
         else return x
 
+-- | Parses a bare identifier
 identifier :: Parser Ident
 identifier = dbg "identifier" . lexeme $ do
   ident <- toText <$> (alphanumeric <|> symbolic)
@@ -155,7 +186,7 @@ identifier = dbg "identifier" . lexeme $ do
     then fail $ "keyword " ++ show ident ++ " cannot be an identifier"
     else return $ Ident.Ident ident
  where
-  -- Alphanumeric identifiers
+  -- | Alphanumeric identifiers
   alphanumeric =
     (:)
       -- The first character must be a letter or underscore
@@ -165,7 +196,7 @@ identifier = dbg "identifier" . lexeme $ do
   underscore = C.char '_'
   prime      = C.char '\''
 
-  -- Symbolic identifiers
+  -- | Symbolic identifiers
   symbolic   = some symbolChar
   symbolChar = choice $ map
     C.char
@@ -191,12 +222,13 @@ identifier = dbg "identifier" . lexeme $ do
     , '*'
     ]
 
+-- | Parses a reserved symbol
 reserved :: forall r . Reserved r => r -> Parser ()
-reserved res = dbg "reserved" $ do
-  _ <- L.symbol (return ()) (Reserved.text res)
-  M.notFollowedBy (Reserved.charSet @r)
-  C.space
+reserved res = dbg "reserved" . lexeme $ do
+  _ <- L.symbol nothing (Reserved.text res)
+  M.notFollowedBy . choice $ map C.char (Reserved.disallowedFollowingChars @r)
 
+-- | Parses a numerical literal
 literal :: Parser Lit
 literal = dbg "literal" $ choice
   -- M.try for common prefixes
@@ -208,3 +240,8 @@ literal = dbg "literal" $ choice
  where
   prefixed :: Text -> Parser Integer -> Parser Integer
   prefixed prefix integer = symbol prefix >> integer
+
+-- | @parens p@ parses @p@ between parentheses
+parens :: (Show a) => Parser a -> Parser a
+parens =
+  dbg "parens" . between (reserved Reserved.Lparen) (reserved Reserved.Rparen)

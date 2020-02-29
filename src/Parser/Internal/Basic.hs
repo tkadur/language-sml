@@ -12,15 +12,18 @@ module Parser.Internal.Basic
   , symbol
   , dbg
   , dbgState
+  , dbgReader
   )
 where
 
-import qualified Control.Monad                 as Monad
+import qualified Control.Monad.Reader          as Reader
+import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
+import qualified Debug.Trace
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Char          as C
 import qualified Text.Megaparsec.Char.Lexer    as L
-import qualified Text.Megaparsec.Debug         as Debug
+import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 
 type Comments = [M.SourcePos]
 
@@ -47,14 +50,16 @@ dbg label parser = do
     Off -> parser
     On  -> dbg_parser
     ForLabels labels -> if label `elem` labels then dbg_parser else parser
-  where dbg_parser = Debug.dbg label parser
+  where dbg_parser = Megaparsec.Debug.dbg label parser
 
-dbgState :: (Show a) => String -> StateT s Parser a -> StateT s Parser a
-dbgState label parser =
-  StateT (\s -> (, s) <$> dbg label (evalStateT parser s))
+dbgState :: (Show a, Show s) => String -> StateT s Parser a -> StateT s Parser a
+dbgState = State.mapStateT . dbg
+
+dbgReader :: (Show a) => String -> ReaderT r Parser a -> ReaderT r Parser a
+dbgReader = Reader.mapReaderT . dbg
 
 nothing :: Parser ()
-nothing = Monad.void $ symbol ""
+nothing = return ()
 
 decimal :: Parser Integer
 decimal = lexeme L.decimal

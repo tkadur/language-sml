@@ -17,4 +17,5 @@ data Expr
     , precedence :: Int
     , rhs :: Expr
     }
+  | Tuple [Expr]
   deriving (Show)

@@ -5,6 +5,7 @@ module Prelude
 where
 
 import           Relude                  hiding ( Op
+                                                , many
                                                 , some
                                                 )
 infixl 0 |>
