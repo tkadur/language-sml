@@ -2,10 +2,11 @@ module Parser
   ( module Parser.Internal
   , module Parser
   , Parser
+  , DebugLevel(..)
   )
 where
 
-import qualified Control.Monad.Writer.Strict   as Writer
+import qualified Control.Monad.RWS.Strict      as RWS
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Error         as E
 
@@ -14,19 +15,22 @@ import           Parser.Internal.Basic          ( Parser
                                                 , E
                                                 , S
                                                 , Comments
+                                                , DebugLevel(..)
                                                 )
 
 runParser :: Parser a
+          -> DebugLevel
           -> String
           -> S
           -> Either (M.ParseErrorBundle S E) (a, Comments)
-runParser parser filename input = (, comments) <$> result
+runParser parser debugLevel filename input = (, comments) <$> result
  where
   (result, comments) =
-    Writer.runWriter $ M.runParserT (parser <* M.eof) filename input
+    RWS.evalRWS (M.runParserT (parser <* M.eof) filename input) debugLevel ()
 
-parseTest :: (Show a) => Parser a -> S -> IO ()
-parseTest parser input = case runParser parser filename input of
-  Left  err -> putStr (E.errorBundlePretty err)
-  Right (parsed, comments) -> print (parsed, comments)
+parseTest :: (Show a) => Parser a -> DebugLevel -> S -> IO ()
+parseTest parser debugLevel input =
+  case runParser parser debugLevel filename input of
+    Left  err -> putStr (E.errorBundlePretty err)
+    Right (parsed, comments) -> print (parsed, comments)
   where filename = ""

@@ -4,9 +4,9 @@ module Prelude
   )
 where
 
-import           Relude                  hiding ( Op )
-import qualified Relude.Unsafe                 as Unsafe
-
+import           Relude                  hiding ( Op
+                                                , some
+                                                )
 infixl 0 |>
 (|>) :: a -> (a -> b) -> b
 x |> f = f x

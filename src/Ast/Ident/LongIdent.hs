@@ -6,7 +6,7 @@ import           Ast.Ident.Ident                ( Ident )
 data LongIdent
     = Ident Ident
     | Qualified
-        { qualifier :: Ident
-        , ident :: LongIdent
+        { qualifiers :: [Ident]
+        , ident :: Ident
         }
     deriving (Show)

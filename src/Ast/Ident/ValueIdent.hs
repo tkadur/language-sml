@@ -9,6 +9,3 @@ data ValueIdent
     = LongIdent LongIdent
     | Op ValueIdent
     deriving (Show)
-
-fromIdent :: Ident -> ValueIdent
-fromIdent = LongIdent . LongIdent.Ident
