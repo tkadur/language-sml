@@ -16,7 +16,6 @@ module Parser.Internal.Basic
 where
 
 import qualified Control.Monad                 as Monad
-import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Char          as C
@@ -52,7 +51,7 @@ dbg label parser = do
 
 dbgState :: (Show a) => String -> StateT s Parser a -> StateT s Parser a
 dbgState label parser =
-  StateT (\s -> (, s) <$> (dbg label $ evalStateT parser s))
+  StateT (\s -> (, s) <$> dbg label (evalStateT parser s))
 
 nothing :: Parser ()
 nothing = Monad.void $ symbol ""

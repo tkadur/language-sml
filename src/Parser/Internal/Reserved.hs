@@ -1,9 +1,16 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Parser.Internal.Reserved where
 
+import           Control.Monad.Combinators
 import qualified Relude.Extra.Enum             as Enum
+import qualified Text.Megaparsec.Char          as C
+
+import           Parser.Internal.Basic          ( Parser )
 
 class Reserved a where
   text :: a -> Text
+  charSet :: Parser Char
 
 data ReservedWord
     = Abstype
@@ -93,6 +100,8 @@ instance Reserved ReservedWord where
     Withtype  -> "withtype"
     While     -> "while"
 
+  charSet = C.letterChar
+
 instance Reserved ReservedOp where
   text = \case
     Lparen      -> "("
@@ -110,6 +119,13 @@ instance Reserved ReservedOp where
     Widearrow   -> "=>"
     Narrowarrow -> "->"
     Octothorpe  -> "#"
+
+  charSet =
+    Enum.universe @ReservedOp
+      |> map (text >>> toString)
+      |> concat
+      |> map C.char
+      |> choice
 
 reservedTokens :: [Text]
 reservedTokens = reservedWords ++ reservedOps

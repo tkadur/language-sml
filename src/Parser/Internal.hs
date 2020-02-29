@@ -8,6 +8,7 @@ import qualified Data.HashSet                  as HashSet
 import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Char          as C
+import qualified Text.Megaparsec.Char.Lexer    as L
 
 import           Ast.Decl                       ( Decl )
 import qualified Ast.Decl                      as Decl
@@ -121,17 +122,24 @@ valueIdentifier operators allowedFixity = dbg "valueIdentifier"
   longIdent = ValueIdent.LongIdent <$> longIdentifier operators allowedFixity
 
 longIdentifier :: FixityTable.Operators -> AllowedFixity -> Parser LongIdent
-longIdentifier operators allowedFixity = dbg "longIdentifier"
-  $ choice [qualifiedNonfix, LongIdent.Ident <$> ident allowedFixity]
+longIdentifier operators allowedFixity = dbg "longIdentifier" $ choice
+  [qualifiedNonfix, qualifiedInfix, LongIdent.Ident <$> ident allowedFixity]
  where
   -- M.try because this could consume a valid bare identifier
-  qualifiedNonfix = M.try $ do
+  qualifiedNonfix = dbg "qualifiedNonfix" . M.try $ do
     idents <- sepBy2 (ident NonfixOnly) (symbol ".")
     let x          = NonEmpty.last idents
     let qualifiers = NonEmpty.take (NonEmpty.length idents - 1) idents
     return $ LongIdent.Qualified { LongIdent.qualifiers, LongIdent.ident = x }
 
-  ident fixityAllowed = do
+  -- M.try because this could consume a valid bare identifier
+  qualifiedInfix = dbg "qualifiedInfix" . M.try $ do
+    -- M.try to prevent this from trying and failing to consume the infix identifier
+    qualifiers <- endBy1 (M.try $ ident NonfixOnly) (symbol ".")
+    x          <- ident AnyFixity
+    return $ LongIdent.Qualified { LongIdent.qualifiers, LongIdent.ident = x }
+
+  ident fixityAllowed = dbg "ident" $ do
     x <- identifier
     case fixityAllowed of
       AnyFixity  -> return x
@@ -183,8 +191,11 @@ identifier = dbg "identifier" . lexeme $ do
     , '*'
     ]
 
-reserved :: Reserved r => r -> Parser ()
-reserved = dbg "reserved" . Monad.void . symbol . Reserved.text
+reserved :: forall r . Reserved r => r -> Parser ()
+reserved res = dbg "reserved" $ do
+  _ <- L.symbol (return ()) (Reserved.text res)
+  M.notFollowedBy (Reserved.charSet @r)
+  C.space
 
 literal :: Parser Lit
 literal = dbg "literal" $ choice
