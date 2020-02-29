@@ -113,19 +113,22 @@ pattern fixityTable = dbg "pattern"
   $ FixityTable.makeParser FixityTable.Pat pattern' fixityTable
  where
   pattern' = choice
-    [ lit
+    [ wild
+    , lit
     , var
     -- M.try to prevent failure from consuming the start of a tuple
     , M.try . parens $ pattern fixityTable
     , tup
     ]
 
-  lit = Pat.Lit <$> literal
+  wild = Pat.Wild <$ reserved Reserved.Underscore
+
+  lit  = Pat.Lit <$> literal
 
   -- M.try to prevent failure from trying to parse infix operator as identifier
-  var = M.try (Pat.Var <$> runReaderT (valueIdentifier NonfixOnly) fixityTable)
+  var  = M.try (Pat.Var <$> runReaderT (valueIdentifier NonfixOnly) fixityTable)
 
-  tup = Pat.Tuple <$> tuple (pattern fixityTable)
+  tup  = Pat.Tuple <$> tuple (pattern fixityTable)
 
 -- | @tuple p@ parses a tuple, parsing each element with @p@
 tuple :: (Show a) => Parser a -> Parser [a]

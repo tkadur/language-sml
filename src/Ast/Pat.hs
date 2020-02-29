@@ -5,7 +5,8 @@ import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
 
 data Pat
-  = Lit Lit
+  = Wild
+  | Lit Lit
   | Var ValueIdent
   | App
     { lhs :: Pat

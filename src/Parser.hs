@@ -24,8 +24,8 @@ runParser :: Parser a
           -> Either (M.ParseErrorBundle S E) (a, Comments)
 runParser parser debugLevel filename input = (, comments) <$> result
  where
-  (result, comments) =
-    RWS.evalRWS (M.runParserT (parser <* M.eof) filename input) debugLevel ()
+  (result, (), comments) =
+    RWS.runRWS (M.runParserT (parser <* M.eof) filename input) debugLevel ()
 
 parseTest :: (Show a) => Parser a -> DebugLevel -> S -> IO ()
 parseTest parser debugLevel input =
