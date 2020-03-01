@@ -137,11 +137,11 @@ tuple parser = dbg "tuple" $ parens (parser `sepBy` reserved Reserved.Comma)
 -- | Parses a possibly qualified, possible "op"-prefixed identifier
 valueIdentifier :: AllowedFixity -> ReaderT FixityTable Parser ValueIdent
 valueIdentifier allowedFixity = dbgReader "valueIdentifier"
-  -- M.try since @longIdent@ will try to parse "op" as an identifier
-  $ choice [M.try longIdent, op]
+  $ choice [op, longIdent]
  where
   op = do
-    lift $ reserved Reserved.Op
+    -- M.try in case a longIdent starts with "op"
+    M.try . lift $ reserved Reserved.Op
     ValueIdent.Op <$> valueIdentifier AnyFixity
 
   longIdent = ValueIdent.LongIdent <$> longIdentifier allowedFixity
@@ -192,8 +192,8 @@ identifier = dbg "identifier" . lexeme $ do
   -- | Alphanumeric identifiers
   alphanumeric =
     (:)
-      -- The first character must be a letter or underscore
-      <$> (C.letterChar <|> prime)
+      -- The first character must be a letter
+      <$> C.letterChar
       -- The remaining characters can be alphanumeric or underscores
       <*> M.many (C.alphaNumChar <|> underscore <|> prime)
   underscore = C.char '_'
