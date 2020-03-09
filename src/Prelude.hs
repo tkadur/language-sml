@@ -12,6 +12,13 @@ infixl 0 |>
 (|>) :: a -> (a -> b) -> b
 x |> f = f x
 
+infixl 1 <<
+(<<) :: (Monad m) => m a -> m b -> m a
+m1 << m2 = do
+  x <- m1
+  m2
+  return x
+
 enumerate :: (Num i, Enum i) => [a] -> [(i, a)]
 enumerate = zip [0 ..]
 

@@ -1,6 +1,6 @@
 module Ast.Pat where
 
-import           Ast.Ident.Ident                ( Ident )
+import qualified Ast.Ident.Ident               as Ident
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
 
@@ -14,9 +14,10 @@ data Pat
     }
   | InfixApp
     { lhs :: Pat
-    , op :: Ident
+    , op :: Ident.Untagged
     , precedence :: Int
     , rhs :: Pat
     }
   | Tuple [Pat]
+  | List [Pat]
   deriving (Show)

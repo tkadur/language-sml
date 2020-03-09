@@ -1,6 +1,9 @@
 module Parser
-  ( module Parser.Internal
-  , module Parser
+  ( module Parser
+  , Internal.topLevel
+  , Internal.declaration
+  , Internal.expression
+  , Internal.pattern
   , Parser
   )
 where
@@ -10,7 +13,7 @@ import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Error         as E
 
 import           Parser.DebugLevel              ( DebugLevel )
-import           Parser.Internal
+import           Parser.Internal               as Internal
 import           Parser.Internal.Basic          ( Parser
                                                 , E
                                                 , S

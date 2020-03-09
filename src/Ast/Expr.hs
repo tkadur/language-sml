@@ -1,8 +1,9 @@
 module Ast.Expr where
 
-import           Ast.Ident.Ident                ( Ident )
+import qualified Ast.Ident.Ident               as Ident
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
+import           Ast.Pat                        ( Pat )
 
 data Expr
   = Lit Lit
@@ -13,9 +14,26 @@ data Expr
     }
   | InfixApp
     { lhs :: Expr
-    , op :: Ident
+    , op :: Ident.Untagged
     , precedence :: Int
     , rhs :: Expr
     }
   | Tuple [Expr]
+  | List [Expr]
+  | Fn
+    { match :: Match
+    }
+  | Case
+    { expr :: Expr
+    , match :: Match
+    }
+  deriving (Show)
+
+type Match = NonEmpty MatchArm
+
+data MatchArm
+  = MatchArm
+    { lhs :: Pat
+    , rhs :: Expr
+    }
   deriving (Show)

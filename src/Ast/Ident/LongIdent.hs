@@ -1,12 +1,12 @@
 module Ast.Ident.LongIdent where
 
-import           Ast.Ident.Ident                ( Ident )
+import qualified Ast.Ident.Ident               as Ident
 
 -- | An identifier, possibly qualified
 data LongIdent
-    = Ident Ident
+    = Ident Ident.Untagged
     | Qualified
-        { qualifiers :: [Ident]
-        , ident :: Ident
+        { qualifiers :: NonEmpty (Ident.Tagged 'Ident.Alphanumeric)
+        , ident :: Ident.Untagged
         }
     deriving (Show)

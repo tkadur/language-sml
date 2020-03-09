@@ -2,19 +2,19 @@ module Ast.Decl where
 
 import           Ast.Expr                       ( Expr )
 import           Ast.Pat                        ( Pat )
-import           Ast.Ident.Ident                ( Ident )
+import qualified Ast.Ident.Ident               as Ident
 
 data Decl
     = Infix
         { precedence :: Maybe Int
-        , ident :: Ident
+        , ident :: Ident.Untagged
         }
     | Infixr
         { precedence :: Maybe Int
-        , ident :: Ident
+        , ident :: Ident.Untagged
         }
     | Nonfix
-        { ident :: Ident
+        { ident :: Ident.Untagged
         }
     | Val
         { lhs :: Pat

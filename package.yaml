@@ -38,6 +38,7 @@ default-extensions:
   - ScopedTypeVariables
   - StrictData
     # Ergonomics
+  - DuplicateRecordFields
   - LambdaCase
   - NamedFieldPuns
   - OverloadedStrings
@@ -51,6 +52,7 @@ default-extensions:
   - KindSignatures
   - TypeOperators
     # Fancier bois
+  - DataKinds
   - GADTs
   - RankNTypes
   - TypeFamilies

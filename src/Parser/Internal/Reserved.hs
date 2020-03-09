@@ -41,27 +41,28 @@ data ReservedWord
     | Then
     | Type
     | Val
+    | While
     | With
     | Withtype
-    | While
     deriving (Bounded, Enum, Show)
 
 data ReservedOp
-    = Lparen
-    | Rparen
-    | Lbracket
-    | Rbracket
-    | Lbrace
-    | Rbrace
+    = Colon
     | Comma
-    | Colon
-    | Semicolon
     | Dotdotdot
-    | Underscore
     | Equal
-    | Widearrow
+    | Lbrace
+    | Lbracket
+    | Lparen
     | Narrowarrow
     | Octothorpe
+    | Pipe
+    | Rbrace
+    | Rbracket
+    | Rparen
+    | Semicolon
+    | Underscore
+    | Widearrow
     deriving (Bounded, Enum, Show)
 
 instance Reserved ReservedWord where
@@ -95,30 +96,31 @@ instance Reserved ReservedWord where
     Then      -> "then"
     Type      -> "type"
     Val       -> "val"
+    While     -> "while"
     With      -> "with"
     Withtype  -> "withtype"
-    While     -> "while"
 
   disallowedFollowingChars =
     concatMap (toString . text) (Enum.universe @ReservedWord)
 
 instance Reserved ReservedOp where
   text = \case
-    Lparen      -> "("
-    Rparen      -> ")"
-    Lbracket    -> "["
-    Rbracket    -> "]"
-    Lbrace      -> "{"
-    Rbrace      -> "}"
-    Comma       -> ","
     Colon       -> ":"
-    Semicolon   -> ";"
+    Comma       -> ","
     Dotdotdot   -> "..."
-    Underscore  -> "_"
     Equal       -> "="
-    Widearrow   -> "=>"
+    Lbrace      -> "{"
+    Lbracket    -> "["
+    Lparen      -> "("
     Narrowarrow -> "->"
     Octothorpe  -> "#"
+    Pipe        -> "|"
+    Rbrace      -> "}"
+    Rbracket    -> "]"
+    Rparen      -> ")"
+    Semicolon   -> ";"
+    Underscore  -> "_"
+    Widearrow   -> "=>"
 
   disallowedFollowingChars = []
 
