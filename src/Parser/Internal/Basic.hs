@@ -40,20 +40,26 @@ type M = RWS DebugLevel Comments ()
 
 type Parser = M.ParsecT E S M
 
-dbg :: (Show a) => String -> Parser a -> Parser a
+dbg :: (Show a) => DebugLevel.Label -> Parser a -> Parser a
 dbg label parser = do
   debug <- ask
   case debug of
     DebugLevel.Off -> parser
     DebugLevel.On  -> dbg_parser
     DebugLevel.ForLabels labels ->
-      if label `elem` labels then dbg_parser else parser
-  where dbg_parser = Megaparsec.Debug.dbg label parser
+      if any (`isPrefixOf` label) labels then dbg_parser else parser
+  where dbg_parser = Megaparsec.Debug.dbg (intercalate "." label) parser
 
-dbgState :: (Show a, Show s) => String -> StateT s Parser a -> StateT s Parser a
+dbgState :: (Show a, Show s)
+         => DebugLevel.Label
+         -> StateT s Parser a
+         -> StateT s Parser a
 dbgState = State.mapStateT . dbg
 
-dbgReader :: (Show a) => String -> ReaderT r Parser a -> ReaderT r Parser a
+dbgReader :: (Show a)
+          => DebugLevel.Label
+          -> ReaderT r Parser a
+          -> ReaderT r Parser a
 dbgReader = Reader.mapReaderT . dbg
 
 nothing :: Parser ()

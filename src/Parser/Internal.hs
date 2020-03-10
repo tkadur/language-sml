@@ -6,6 +6,7 @@ import           Control.Monad.Combinators
                                                 )
 import qualified Control.Monad.Combinators.Expr
                                                as E
+import qualified Data.HashSet                  as HashSet
 import           Control.Monad.Combinators.NonEmpty
                                                 ( endBy1
                                                 , sepBy1
@@ -36,22 +37,18 @@ import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Reserved       ( Reserved )
 import qualified Parser.Internal.Reserved      as Reserved
 
-data AllowedFixity
-  = AnyFixity
-  | NonfixOnly
-
 -- | Parses the toplevel
 topLevel :: Parser [Decl]
-topLevel = dbg "topLevel" $ evalStateT decls FixityTable.basisFixityTable
+topLevel = dbg ["topLevel"] $ evalStateT decls FixityTable.basisFixityTable
   where decls = many declaration
 
 -- | Parses a declaration
 declaration :: StateT FixityTable Parser Decl
-declaration = dbgState "declaration"
+declaration = dbgState ["declaration"]
   $ choice [val, nonfix, infixrDecl, infixDecl]
  where
   val :: StateT FixityTable Parser Decl
-  val = dbgState "val" $ do
+  val = dbgState ["declaration", "val"] $ do
     fixityTable <- get
     lift $ do
       reserved Reserved.Val
@@ -61,7 +58,7 @@ declaration = dbgState "declaration"
       return Decl.Val { Decl.lhs, Decl.rhs }
 
   nonfix :: StateT FixityTable Parser Decl
-  nonfix = dbgState "nonfix" $ do
+  nonfix = dbgState ["declaration", "nonfix"] $ do
     ident <- lift $ do
       reserved Reserved.Nonfix
       identifier
@@ -69,13 +66,13 @@ declaration = dbgState "declaration"
     return Decl.Nonfix { Decl.ident }
 
   infixrDecl :: StateT FixityTable Parser Decl
-  infixrDecl = dbgState "infixrDecl" $ do
+  infixrDecl = dbgState ["declaration", "infixrDecl"] $ do
     (precedence, ident) <- lift $ fixityDecl Reserved.Infixr
     modify $ FixityTable.addOperator ident E.InfixR (fromMaybe 0 precedence)
     return Decl.Infixr { Decl.precedence, Decl.ident }
 
   infixDecl :: StateT FixityTable Parser Decl
-  infixDecl = dbgState "infixDecl" $ do
+  infixDecl = dbgState ["declaration", "infixDecl"] $ do
     (precedence, ident) <- lift $ fixityDecl Reserved.Infix
     modify $ FixityTable.addOperator ident E.InfixL (fromMaybe 0 precedence)
     return Decl.Infix { Decl.precedence, Decl.ident }
@@ -94,7 +91,7 @@ declaration = dbgState "declaration"
 
 -- | Parses an expression
 expression :: FixityTable -> Parser Expr
-expression fixityTable = dbg "expression"
+expression fixityTable = dbg ["expression"]
   $ makeFixityParser FixityTable.Expr expression' fixityTable
  where
   expression' = choice
@@ -111,7 +108,7 @@ expression fixityTable = dbg "expression"
   lit = Expr.Lit <$> literal
 
   -- M.try to prevent failure from trying to parse infix operator as identifier
-  var = dbg "var" . M.try $ (Expr.Var <$> valueIdentifier)
+  var = M.try $ (Expr.Var <$> nonfixValueIdentifier fixityTable)
 
   tup = Expr.Tuple <$> tuple (expression fixityTable)
 
@@ -141,7 +138,7 @@ matchArm fixityTable = do
 
 -- | Parses a pattern
 pattern :: FixityTable -> Parser Pat
-pattern fixityTable = dbg "pattern"
+pattern fixityTable = dbg ["pattern"]
   $ makeFixityParser FixityTable.Pat pattern' fixityTable
  where
   pattern' = choice
@@ -154,16 +151,17 @@ pattern fixityTable = dbg "pattern"
     , lst
     ]
 
-  wild = Pat.Wild <$ reserved Reserved.Underscore
+  wild = dbg ["pattern", "wild"] $ Pat.Wild <$ reserved Reserved.Underscore
 
-  lit  = Pat.Lit <$> literal
+  lit  = dbg ["pattern", "lit"] $ Pat.Lit <$> literal
 
   -- M.try to prevent failure from trying to parse infix operator as identifier
-  var  = M.try (Pat.Var <$> valueIdentifier)
+  var  = dbg ["pattern", "var"]
+    $ M.try (Pat.Var <$> nonfixValueIdentifier fixityTable)
 
-  tup  = Pat.Tuple <$> tuple (pattern fixityTable)
+  tup = Pat.Tuple <$> tuple (pattern fixityTable)
 
-  lst  = Pat.List <$> list (pattern fixityTable)
+  lst = Pat.List <$> list (pattern fixityTable)
 
 -- | Convenience function that pre-supplies the identifier parser arguments to
 --   'FixityTable.makeParser'
@@ -178,15 +176,26 @@ makeFixityParser = FixityTable.makeParser FixityTable.IdentParsers
 
 -- | @list p@ parses a list, parsing each element with @p@
 list :: (Show a) => Parser a -> Parser [a]
-list parser = dbg "list" $ brackets (parser `sepBy` reserved Reserved.Comma)
+list parser = dbg ["list"] $ brackets (parser `sepBy` reserved Reserved.Comma)
 
 -- | @tuple p@ parses a tuple, parsing each element with @p@
 tuple :: (Show a) => Parser a -> Parser [a]
-tuple parser = dbg "tuple" $ parens (parser `sepBy` reserved Reserved.Comma)
+tuple parser = dbg ["tuple"] $ parens (parser `sepBy` reserved Reserved.Comma)
+
+-- | Parses a value identifier which must not be infixed
+nonfixValueIdentifier :: FixityTable -> Parser ValueIdent
+nonfixValueIdentifier fixityTable = do
+  ident <- valueIdentifier
+  case ident of
+    ValueIdent.LongIdent (LongIdent.Ident x) ->
+      if x `HashSet.member` FixityTable.operators fixityTable
+        then fail $ "unexpected infix identifier " ++ show x
+        else return ident
+    _ -> return ident
 
 -- | Parses a possibly qualified, possible "op"-prefixed identifier
 valueIdentifier :: Parser ValueIdent
-valueIdentifier = dbg "valueIdentifier" $ choice [op, longIdent]
+valueIdentifier = dbg ["valueIdentifier"] $ choice [op, longIdent]
  where
   op = do
     -- M.try in case a longIdent starts with "op"
@@ -197,13 +206,13 @@ valueIdentifier = dbg "valueIdentifier" $ choice [op, longIdent]
 
 -- | Parses a possibly qualified identifier
 longIdentifier :: Parser LongIdent
-longIdentifier = dbg "longIdentifier"
+longIdentifier = dbg ["longIdentifier"]
   $ choice [qualifiedAlphanum, qualifiedSymbolic, unqualified]
  where
   -- M.try because this could consume a valid bare identifier
   -- | Qualified identifier ending in an alphanumeric identifier
   qualifiedAlphanum :: Parser LongIdent
-  qualifiedAlphanum = dbg "qualifiedNonfix" . M.try $ do
+  qualifiedAlphanum = dbg ["longIdentifier", "qualifiedNonfix"] . M.try $ do
     idents <- alphanumeric `sepBy2` symbol "."
     let ident = Ident.untag $ NonEmpty.last idents
     let qualifiers =
@@ -216,7 +225,7 @@ longIdentifier = dbg "longIdentifier"
   -- M.try because this could consume a valid bare identifier
   -- | Qualified identifier ending in a symbolic identifier
   qualifiedSymbolic :: Parser LongIdent
-  qualifiedSymbolic = dbg "qualifiedInfix" . M.try $ do
+  qualifiedSymbolic = dbg ["longIdentifier", "qualifiedInfix"] . M.try $ do
     -- M.try to prevent this from trying and failing to consume the symbolic identifier
     qualifiers <- endBy1 (M.try alphanumeric) (symbol ".")
     ident      <- identifier
@@ -231,7 +240,7 @@ identifier = choice [Ident.untag <$> alphanumeric, Ident.untag <$> symbolic]
 
 -- | Alphanumeric identifiers
 alphanumeric :: Parser (Ident.Tagged 'Ident.Alphanumeric)
-alphanumeric = dbg "alphanumeric" . lexeme $ do
+alphanumeric = dbg ["alphanumeric"] . lexeme $ do
   -- The first character must be a letter
   c  <- C.letterChar
   -- The remaining characters can be alphanumeric or underscores
@@ -245,7 +254,7 @@ alphanumeric = dbg "alphanumeric" . lexeme $ do
 
 -- | Symbolic identifiers
 symbolic :: Parser (Ident.Tagged 'Ident.Symbolic)
-symbolic = dbg "symbolic" . lexeme $ do
+symbolic = dbg ["symbolic"] . lexeme $ do
   cs <- some symbolChar
   let ident = Ident.symbolic $ toText cs
   checkValidIdent ident
@@ -289,13 +298,13 @@ checkValidIdent ident = if name `elem` Reserved.reservedTokens && name /= "="
 
 -- | Parses a reserved symbol
 reserved :: forall r . Reserved r => r -> Parser ()
-reserved res = dbg "reserved" . lexeme $ do
+reserved res = dbg ["reserved"] . lexeme $ do
   _ <- L.symbol nothing (Reserved.text res)
   M.notFollowedBy $ choice (map C.char (Reserved.disallowedFollowingChars @r))
 
 -- | Parses a numerical literal
 literal :: Parser Lit
-literal = dbg "literal" $ choice
+literal = dbg ["literal"] $ choice
   -- M.try for common prefixes
   [ M.try (Lit.HexWord <$> prefixed "0wx" hexadecimal)
   , M.try (Lit.Hex <$> prefixed "0x" hexadecimal)
@@ -309,14 +318,14 @@ literal = dbg "literal" $ choice
 -- | @braces p@ parses @p@ between braces
 braces :: (Show a) => Parser a -> Parser a
 braces =
-  dbg "braces" . between (reserved Reserved.Lbrace) (reserved Reserved.Rbrace)
+  dbg ["braces"] . between (reserved Reserved.Lbrace) (reserved Reserved.Rbrace)
 
 -- | @brackets p@ parses @p@ between brackets
 brackets :: (Show a) => Parser a -> Parser a
-brackets = dbg "brackets"
+brackets = dbg ["brackets"]
   . between (reserved Reserved.Lbracket) (reserved Reserved.Rbracket)
 
 -- | @parens p@ parses @p@ between parentheses
 parens :: (Show a) => Parser a -> Parser a
 parens =
-  dbg "parens" . between (reserved Reserved.Lparen) (reserved Reserved.Rparen)
+  dbg ["parens"] . between (reserved Reserved.Lparen) (reserved Reserved.Rparen)
