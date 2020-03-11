@@ -8,4 +8,4 @@ data Position = Position
   , line :: Int
   , col :: Int
   }
-  deriving (Show)
+  deriving (Eq, Ord, Show)

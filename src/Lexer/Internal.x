@@ -1,6 +1,7 @@
 {
 module Lexer.Internal where
 
+import qualified Data.Text                     as Text
 import           Text.Read                      ( read )
 
 import qualified Common.Marked                 as Marked
@@ -174,6 +175,7 @@ mark input len value = do
     { Marked.value
     , Marked.startPosition
     , Marked.endPosition
+    , Marked.len
     }
 
 -- | Given the position at the start of a string, returns
@@ -292,10 +294,14 @@ promoteComment = Alex $ \s ->
 
         endPosition = advance startPosition (toString value)
 
+        -- 4 extra characters for "(*" and "*)"
+        len = Text.length value + 4
+
         comment = Marked.Marked
           { Marked.value
           , Marked.startPosition
           , Marked.endPosition
+          , Marked.len
           }
       in
         AlexUserState

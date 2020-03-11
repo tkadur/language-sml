@@ -9,5 +9,6 @@ data Marked a = Marked
   { value :: a
   , startPosition :: Position
   , endPosition :: Position
+  , len :: Int
   }
-  deriving (Show)
+  deriving (Eq, Ord, Show)
