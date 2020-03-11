@@ -144,44 +144,43 @@ type Comment = Text
 
 lex :: Alex ([Marked Comment], [Marked Token])
 lex = do
-  t <- alexMonadScan
-  case Marked.value t of
+  -- No vowels allowed
+  tkn <- alexMonadScan
+  case Marked.value tkn of
     Eof -> do
-      -- No vowels allowed
       cmnts <- getComments
-      return (cmnts, [t])
+      return (cmnts, [tkn])
     _ -> do
-      (cmnts, ts) <- lex
-      return (cmnts, t:ts)
+      (cmnts, tkns) <- lex
+      return (cmnts, tkn:tkns)
 
-posn :: AlexInput -> AlexPosn
-posn (p, _, _, _) = p
+posn :: AlexInput -> Alex Position
+posn (p, _, _, _) = do
+  file <- getFile
+  return $ makePos file p
+ where
+  makePos :: FilePath -> AlexPosn -> Position
+  makePos file (AlexPn _ line col) =
+    Position.Position { Position.file, Position.line, Position.col }
 
 str :: AlexInput -> String
 str (_, _, _, s) = s
 
-makePos :: FilePath -> AlexPosn -> Position
-makePos file (AlexPn _ line col) =
-  Position.Position { Position.file, Position.line, Position.col }
-
-getPosition :: AlexPosn -> Alex Position
-getPosition pos = do
-  file <- getFile
-  return $ makePos file pos
-
-mark :: AlexPosn -> a -> Alex (Marked a)
-mark pos value = do
-  position <- getPosition pos
+mark :: AlexInput -> a -> Alex (Marked a)
+mark input value = do
+  position <- posn input
   return $ Marked.Marked { Marked.value, Marked.position }
 
 tok :: Token -> AlexAction (Marked Token)
-tok tkn input _ = mark (posn input) tkn
+tok tkn input _ = mark input tkn
 
 tokWith :: (String -> a) -> (a -> Token) -> AlexAction (Marked Token)
-tokWith f t input len = mark (posn input) (t . f . take len $ str input)
+tokWith f t input len = mark input (t . f . take len $ str input)
 
 readNum :: (Num a, Read a) => String -> a
 readNum = read . map (\case
+  -- SML's negation symbol needs to be made normal before
+  -- @read@ can understand lexed numbers
   '~' -> '-'
   c -> c
   )
@@ -197,7 +196,7 @@ startComment input len = do
   case depth of
     -- Switching from code to comment
     1 -> do
-      position <- getPosition (posn input)
+      position <- posn input
       initComment position
     -- Starting nested comment
     _ -> addToComment $ take len (str input)
@@ -244,17 +243,17 @@ decrCommentDepth = Alex $ \s ->
 
 -- Begins a new comment
 initComment :: Position -> Alex ()
-initComment position = Alex $ \s -> Right (initState s, ())
+initComment position = Alex $ \s -> Right (initUst s, ())
  where
-  initState = initPosn . initContents
+  initUst = initPos . initContents
 
-  initPosn s = updateUst s $ \ust -> case currCommentPosn ust of
+  initPos s = updateUst s $ \ust -> case currPos ust of
     Just _  -> error "comment position is already initialized"
-    Nothing -> ust { currCommentPosn = Just position }
+    Nothing -> ust { currPos = Just position }
 
-  initContents s = updateUst s $ \ust -> case currComment ust of
+  initContents s = updateUst s $ \ust -> case currContents ust of
     Just _  -> error "comment contents already already initialized"
-    Nothing ->  ust { currComment = Just "" }
+    Nothing ->  ust { currContents = Just "" }
 
 -- Promotes the currently in-progress comment to the main comment storage,
 -- clearing out the in-progress spot for a new comment
@@ -263,13 +262,11 @@ promoteComment = Alex $ \s ->
   let
     s' = updateUst s $ \AlexUserState {..} ->
       let
-        position = case currCommentPosn of
-          Nothing -> error "no in-progress comment posn to promote"
-          Just curr -> curr
+        position =
+          fromMaybe (error "no in-progress comment position to promote") currPos
 
-        value = case currComment of
-          Nothing -> error "no in-progress comment contents to promote"
-          Just curr -> curr
+        value =
+          fromMaybe (error "no in-progress comment contents to promote") currContents
 
         comment = Marked.Marked { Marked.value , Marked.position }
       in
@@ -277,8 +274,8 @@ promoteComment = Alex $ \s ->
           { filepath
           , commentDepth
           , comments = comment : comments
-          , currCommentPosn = Nothing
-          , currComment = Nothing
+          , currPos = Nothing
+          , currContents = Nothing
           }
   in
     Right (s', ())
@@ -286,20 +283,20 @@ promoteComment = Alex $ \s ->
 addToComment :: String -> Alex ()
 addToComment new = Alex $ \s ->
   let
-    s' = updateUst s $ \ust@AlexUserState { currComment } ->
-      case currComment of
+    s' = updateUst s $ \ust@AlexUserState { currContents } ->
+      case currContents of
         Nothing -> error "no in-progress comment to add ot"
-        Just curr -> ust { currComment = Just (curr <> toText new) }
+        Just curr -> ust { currContents = Just (curr <> toText new) }
   in
     Right (s', ())
 
 updateUst :: AlexState -> (AlexUserState -> AlexUserState) -> AlexState
 updateUst s@AlexState { alex_ust } f = s { alex_ust = f alex_ust }
 
--- Convenience
+-- | Reports an error at the current input position
 lexError :: AlexAction a
 lexError input _ = do
-  position <- getPosition (posn input)
+  position <- posn input
   alexError $ "unexpected character at " ++ show position
 
 -- Alex Plumbing
@@ -309,20 +306,19 @@ data AlexUserState = AlexUserState
   , commentDepth :: Int
   , comments :: [Marked Comment]
   -- Position of current comment
-  , currCommentPosn :: Maybe Position
+  , currPos :: Maybe Position
   -- Contents lexed so far of current comment
-  , currComment :: Maybe Text
+  , currContents :: Maybe Text
   }
 
 alexEOF :: Alex (Marked Token)
 alexEOF = do
   input <- alexGetInput
-  let pos = posn input
   code <- alexGetStartCode
   if code == 0 then
-    mark pos Eof
+    mark input Eof
   else if code == state_comment then do
-    position <- getPosition pos
+    position <- posn input
     alexError $ "unclosed comment starting at " ++ show position
   else
     error $ "unknown start code " <> show code
@@ -341,17 +337,19 @@ alexInitUserState' file = AlexUserState
   { filepath = file
   , commentDepth = 0
   , comments = []
-  , currCommentPosn = Nothing
-  , currComment = Nothing
+  , currPos = Nothing
+  , currContents = Nothing
   }
 
 runAlex' :: FilePath -> String -> Alex a -> Either String a
-runAlex' file input (Alex f)
-   = case f (AlexState {alex_pos = alexStartPos,
-                        alex_inp = input,
-                        alex_chr = '\n',
-                        alex_bytes = [],
-                        alex_ust = alexInitUserState' file,
-                        alex_scd = 0}) of Left msg -> Left msg
-                                          Right ( _, a ) -> Right a
+runAlex' file input (Alex f) = snd <$> f initState
+ where
+  initState = AlexState
+    { alex_pos = alexStartPos
+    , alex_inp = input
+    , alex_chr = '\n'
+    , alex_bytes = []
+    , alex_ust = alexInitUserState' file
+    , alex_scd = 0
+    }
 }
