@@ -189,9 +189,9 @@ advance Position.Position{..} s =
     (line', col') = go line col s
 
     go ln cl cs = case cs of
-      []      -> (ln, cl)
-      '\n':cs' -> go (ln + 1) 0 cs'
-      _:cs'    -> go ln (cl + 1) cs'
+      []        -> (ln, cl)
+      '\n' : cs' -> go (ln + 1) 0 cs'
+      _ : cs'    -> go ln (cl + 1) cs'
 
 tok :: Token -> AlexAction (Marked Token)
 tok tkn input len = mark input len tkn
