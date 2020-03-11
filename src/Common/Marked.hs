@@ -7,6 +7,7 @@ import           Common.Position                ( Position )
 
 data Marked a = Marked
   { value :: a
-  , position :: Position
+  , startPosition :: Position
+  , endPosition :: Position
   }
   deriving (Show)

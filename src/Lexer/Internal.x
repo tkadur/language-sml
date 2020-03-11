@@ -166,16 +166,38 @@ posn (p, _, _, _) = do
 str :: AlexInput -> String
 str (_, _, _, s) = s
 
-mark :: AlexInput -> a -> Alex (Marked a)
-mark input value = do
-  position <- posn input
-  return $ Marked.Marked { Marked.value, Marked.position }
+mark :: AlexInput -> Int -> a -> Alex (Marked a)
+mark input len value = do
+  startPosition <- posn input
+  let endPosition = advance startPosition (take len $ str input)
+  return $ Marked.Marked
+    { Marked.value
+    , Marked.startPosition
+    , Marked.endPosition
+    }
+
+-- | Given the position at the start of a string, returns
+--   the position at the end of that string
+advance :: Position -> String -> Position
+advance Position.Position{..} s =
+  Position.Position
+    { Position.file
+    , Position.line = line'
+    , Position.col = col'
+    }
+ where
+    (line', col') = go line col s
+
+    go ln cl cs = case cs of
+      []      -> (ln, cl)
+      '\n':cs' -> go (ln + 1) 0 cs'
+      _:cs'    -> go ln (cl + 1) cs'
 
 tok :: Token -> AlexAction (Marked Token)
-tok tkn input _ = mark input tkn
+tok tkn input len = mark input len tkn
 
 tokWith :: (String -> a) -> (a -> Token) -> AlexAction (Marked Token)
-tokWith f t input len = mark input (t . f . take len $ str input)
+tokWith f t input len = mark input len (t . f . take len $ str input)
 
 readNum :: (Num a, Read a) => String -> a
 readNum = read . map (\case
@@ -262,13 +284,19 @@ promoteComment = Alex $ \s ->
   let
     s' = updateUst s $ \AlexUserState {..} ->
       let
-        position =
-          fromMaybe (error "no in-progress comment position to promote") currPos
-
         value =
           fromMaybe (error "no in-progress comment contents to promote") currContents
 
-        comment = Marked.Marked { Marked.value , Marked.position }
+        startPosition =
+          fromMaybe (error "no in-progress comment position to promote") currPos
+
+        endPosition = advance startPosition (toString value)
+
+        comment = Marked.Marked
+          { Marked.value
+          , Marked.startPosition
+          , Marked.endPosition
+          }
       in
         AlexUserState
           { filepath
@@ -316,7 +344,7 @@ alexEOF = do
   input <- alexGetInput
   code <- alexGetStartCode
   if code == 0 then
-    mark input Eof
+    mark input 0 Eof
   else if code == state_comment then do
     position <- posn input
     alexError $ "unclosed comment starting at " ++ show position
