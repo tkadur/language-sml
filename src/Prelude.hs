@@ -37,3 +37,10 @@ dropUntil f xs = case (f xs, xs) of
   (True , _      ) -> xs
   (_    , []     ) -> xs
   (False, _ : xs') -> dropUntil f xs'
+
+-- | @foldingMap@ is a version of @map@ that threads an accumulator
+--   through calls to @f@
+foldingMap :: (b -> a -> (b, c)) -> b -> [a] -> [c]
+foldingMap f z xs = case xs of
+  []      -> []
+  x : xs' -> let (z', x') = f z x in x' : foldingMap f z' xs'

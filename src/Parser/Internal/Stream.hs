@@ -1,5 +1,6 @@
 module Parser.Internal.Stream
   ( Stream()
+  , stream
   )
 where
 
@@ -11,6 +12,7 @@ import qualified Text.Megaparsec               as M
 import           Common.Marked                  ( Marked )
 import qualified Common.Marked                 as Marked
 import           Common.Position                ( Position )
+import qualified Common.Position               as Position
 import qualified Lexer.Token
 
 type Input = [(Position, Char)]
@@ -41,17 +43,17 @@ instance M.Stream Stream where
   chunkEmpty Proxy = null
 
   take1_ :: Stream -> Maybe (SToken, Stream)
-  take1_ stream = unwrapTokens <$> M.takeN_ 1 stream
-    where unwrapTokens (tokens, stream') = (Unsafe.head tokens, stream')
+  take1_ strm = unwrapTokens <$> M.takeN_ 1 strm
+    where unwrapTokens (tokens, strm') = (Unsafe.head tokens, strm')
 
   takeN_ :: Int -> Stream -> Maybe (STokens, Stream)
-  takeN_ n stream@Stream {..}
-    | n <= 0      = Just ([], stream)
+  takeN_ n strm@Stream {..}
+    | n <= 0      = Just ([], strm)
     | null tokens = Nothing
-    | otherwise   = Just $ take_ stream (splitAt n $ streamToStokens stream)
+    | otherwise   = Just $ take_ strm (splitAt n $ strmToStokens strm)
 
   takeWhile_ :: (SToken -> Bool) -> Stream -> (STokens, Stream)
-  takeWhile_ f stream = take_ stream (span f $ streamToStokens stream)
+  takeWhile_ f strm = take_ strm (span f $ strmToStokens strm)
 
   showTokens :: Proxy Stream -> NonEmpty SToken -> String
   showTokens Proxy stokens = inputToString
@@ -68,7 +70,7 @@ instance M.Stream Stream where
   -- The idea here is that we defer to the behavior of @String@'s @M.Stream@
   -- instance, and then just update the @Stream@ state to match what the
   -- @String@ instance did.
-    (string, strPosState { M.pstateInput = stream { tokens = tokens' } })
+    (string, strPosState { M.pstateInput = strm { tokens = tokens' } })
    where
     (string, strPosState) =
       M.reachOffset o (posState { M.pstateInput = inputToString input })
@@ -84,7 +86,7 @@ instance M.Stream Stream where
     -- The suffix of the input corresponding to @string@
     inputSuffix = dropUntil (\suffix -> inputToString suffix == string) input
 
-    stream@Stream {..} = pstateInput
+    strm@Stream {..} = pstateInput
 
 -- | @sliceInput startPosition endPosition inpt@ returns the portion
 --   of @inpt@ in [@startPosition@, @endPosition@)
@@ -100,10 +102,33 @@ sliceInput startPosition endPosition inp =
 
 -- Factors out common functionality for takeN_ and takeWhile_
 take_ :: Stream -> (STokens, STokens) -> (STokens, Stream)
-take_ stream (res, stokens) = (res, stream { tokens = map snd stokens })
+take_ strm (res, stokens) = (res, strm { tokens = map snd stokens })
 
-streamToStokens :: Stream -> STokens
-streamToStokens Stream {..} = map (input, ) tokens
+stream :: FilePath                   -- ^ Source file name
+       -> Text                       -- ^ Source file contents
+       -> [Marked Lexer.Token.Token] -- ^ Lexed token stream
+       -> Stream
+stream file rawInput tokens = Stream { input, tokens }
+ where
+  input = mark $ toString rawInput
+
+  -- | Marks every character with its position
+  mark :: String -> Input
+  mark = foldingMap
+    (\(line, col) c ->
+      -- Update position based on current character
+      ( case c of
+        '\n' -> (line + 1, 0)
+        _    -> (line, col + 1)
+      -- Mark each character with current position
+      , (Position.Position { Position.file, Position.line, Position.col }, c)
+      )
+    )
+    -- Initial position is 1:1
+    (1, 1)
+
+strmToStokens :: Stream -> STokens
+strmToStokens Stream {..} = map (input, ) tokens
 
 inputToString :: Input -> String
 inputToString = map snd
