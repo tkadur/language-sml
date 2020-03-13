@@ -13,30 +13,34 @@ conf_debug:
   dconf_dump_ast_full: false
 conf_forward:
   options_ghc:
+    - -XApplicativeDo
+    - -XBangPatterns
+    - -XDataKinds
+    - -XDeriveFoldable
+    - -XDeriveFunctor
+    - -XDeriveGeneric
+    - -XDeriveTraversable
+    - -XDuplicateRecordFields
     - -XFlexibleContexts
     - -XFlexibleInstances
+    - -XGADTs
+    - -XGeneralizedNewtypeDeriving
     - -XInstanceSigs
+    - -XKindSignatures
+    - -XLambdaCase
     - -XMultiParamTypeClasses
+    - -XMultiWayIf
+    - -XNamedFieldPuns
+    - -XNoMonomorphismRestriction
+    - -XOverloadedStrings
+    - -XRankNTypes
+    - -XRecordWildCards
     - -XScopedTypeVariables
     - -XStrictData
-    - -XNamedFieldPuns
     - -XTupleSections
-    - -XOverloadedStrings
-    - -XLambdaCase
-    - -XDeriveFunctor
-    - -XDeriveFoldable
-    - -XDeriveTraversable
-    - -XDeriveGeneric
-    - -XKindSignatures
-    - -XTypeOperators
-    - -XRankNTypes
-    - -XGADTs
-    - -XTypeFamilies
-    - -XApplicativeDo
     - -XTypeApplications
-    - -XBangPatterns
-    - -XNoMonomorphismRestriction
-    - -XMultiWayIf
+    - -XTypeFamilies
+    - -XTypeOperators
 conf_errorHandling:
   econf_ExactPrintFallback: ExactPrintFallbackModeInline
   econf_Werror: false

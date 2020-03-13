@@ -1,7 +1,6 @@
 {
 module Lexer.Internal where
 
-import qualified Data.Text                     as Text
 import           Text.Read                      ( read )
 
 import qualified Common.Marked                 as Marked

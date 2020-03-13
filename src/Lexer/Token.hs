@@ -77,4 +77,4 @@ data Token
     | Widearrow
     -- Module reserved symbols
     | ColonGt
-    deriving (Show)
+    deriving (Eq, Ord, Show)
