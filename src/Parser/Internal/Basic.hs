@@ -1,15 +1,12 @@
 module Parser.Internal.Basic
   ( Parser
-  , E
-  , S
-  , M
+  , Error
   , Comments
   , DebugLevel(..)
-  , lexeme
   , nothing
-  , decimal
-  , hexadecimal
-  , symbol
+  , eof
+  , token_
+  , tokenWith
   , dbg
   , dbgState
   , dbgReader
@@ -19,26 +16,24 @@ where
 import qualified Control.Monad.Reader          as Reader
 import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
+import qualified Data.Set                      as Set
 import qualified Text.Megaparsec               as M
-import qualified Text.Megaparsec.Char          as C
-import qualified Text.Megaparsec.Char.Lexer    as L
 import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 
+import qualified Common.Marked                 as Marked
 import           Parser.DebugLevel              ( DebugLevel )
 import qualified Parser.DebugLevel             as DebugLevel
+import           Parser.Internal.Token          ( Token )
+import qualified Parser.Internal.Token         as Token
+import           Parser.Internal.Stream         ( Stream )
 
 type Comments = [M.SourcePos]
 
--- Error
-type E = Void
+type Error = Void
 
--- Stream
-type S = Text
+type UnderlyingMonad = RWS DebugLevel Comments ()
 
--- Underlying monad
-type M = RWS DebugLevel Comments ()
-
-type Parser = M.ParsecT E S M
+type Parser = M.ParsecT Error Stream UnderlyingMonad
 
 dbg :: (Show a) => DebugLevel.Label -> Parser a -> Parser a
 dbg label parser = do
@@ -65,18 +60,11 @@ dbgReader = Reader.mapReaderT . dbg
 nothing :: Parser ()
 nothing = return ()
 
-decimal :: Parser Integer
-decimal = lexeme L.decimal
+eof :: Parser ()
+eof = token_ Token.Eof >> M.eof
 
-hexadecimal :: Parser Integer
-hexadecimal = lexeme L.hexadecimal
+token_ :: Token -> Parser ()
+token_ tok = M.satisfy (\(_, mtok) -> Marked.value mtok == tok) >> nothing
 
-lexeme :: Parser a -> Parser a
-lexeme = L.lexeme spaceConsumer
-
-symbol :: Text -> Parser Text
-symbol = L.symbol spaceConsumer
-
-spaceConsumer :: Parser ()
-spaceConsumer = L.space C.space1 empty blockComment
-  where blockComment = L.skipBlockComment "(*" "*)"
+tokenWith :: (Token -> Maybe a) -> Parser a
+tokenWith f = M.token (\(_, mtok) -> f $ Marked.value mtok) Set.empty

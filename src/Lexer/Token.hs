@@ -13,7 +13,7 @@ data Token
     -- Misc. symbols
     | Dot
     -- Identifiers
-    | Alphanum Text
+    | Alphanumeric Text
     | Symbolic Text
     -- Core reserved words
     | Abstype

@@ -1,9 +1,12 @@
 module Ast.Lit where
 
+import           Data.Scientific                ( Scientific )
+
 data Lit
-    = Dec Integer
+    = Int Integer
     | Hex Integer
-    | DecWord Integer
+    | Word Integer
     | HexWord Integer
+    | Real Scientific
     | String Text
     deriving (Show)

@@ -134,7 +134,7 @@ tokens :-
   <0> ":>"                                       { tok ColonGt                        }
 
   -- Identifiers
-  <0> $alpha (@alphanum | $underscore | $prime)* { tokWith toText Alphanum            }
+  <0> $alpha (@alphanum | $underscore | $prime)* { tokWith toText Alphanumeric        }
   <0> @symbols                                   { tokWith toText Symbolic            }
 
   -- Error reporting

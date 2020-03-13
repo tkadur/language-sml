@@ -25,6 +25,7 @@ data Stream = Stream
   { input :: Input
   , tokens :: [Marked Lexer.Token.Token]
   }
+  deriving (Show)
 
 instance M.Stream Stream where
   type Token Stream = SToken
@@ -66,27 +67,7 @@ instance M.Stream Stream where
   tokensLength Proxy = length . M.showTokens proxy
 
   reachOffset :: Int -> M.PosState Stream -> (String, M.PosState Stream)
-  reachOffset o posState@M.PosState { M.pstateInput } =
-  -- The idea here is that we defer to the behavior of @String@'s @M.Stream@
-  -- instance, and then just update the @Stream@ state to match what the
-  -- @String@ instance did.
-    (string, strPosState { M.pstateInput = strm { tokens = tokens' } })
-   where
-    (string, strPosState) =
-      M.reachOffset o (posState { M.pstateInput = inputToString input })
-
-    -- The suffix of @tokens@ corresponding to @inputSuffix@
-    tokens' = case inputSuffix of
-      [] -> []
-      (position, _) : _ ->
-        -- If (for some reason) @inputSuffix@ stops in the middle of a token,
-        -- keep that token in @tokens'@
-        dropWhile (\token -> Marked.endPosition token < position) tokens
-
-    -- The suffix of the input corresponding to @string@
-    inputSuffix = dropUntil (\suffix -> inputToString suffix == string) input
-
-    strm@Stream {..} = pstateInput
+  reachOffset = undefined
 
 -- | @sliceInput startPosition endPosition inpt@ returns the portion
 --   of @inpt@ in [@startPosition@, @endPosition@)

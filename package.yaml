@@ -23,6 +23,7 @@ dependencies:
   - base-noprelude
   - relude
   - array
+  - containers
   - megaparsec
   - mtl
   - parser-combinators

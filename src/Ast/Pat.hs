@@ -1,6 +1,6 @@
 module Ast.Pat where
 
-import qualified Ast.Ident.Ident               as Ident
+import           Ast.Ident.Ident                ( Ident )
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
 
@@ -14,7 +14,7 @@ data Pat
     }
   | InfixApp
     { lhs :: Pat
-    , op :: Ident.Untagged
+    , op :: Ident
     , precedence :: Int
     , rhs :: Pat
     }

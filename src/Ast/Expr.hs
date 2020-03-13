@@ -1,6 +1,6 @@
 module Ast.Expr where
 
-import qualified Ast.Ident.Ident               as Ident
+import           Ast.Ident.Ident                ( Ident )
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
 import           Ast.Pat                        ( Pat )
@@ -14,7 +14,7 @@ data Expr
     }
   | InfixApp
     { lhs :: Expr
-    , op :: Ident.Untagged
+    , op :: Ident
     , precedence :: Int
     , rhs :: Expr
     }

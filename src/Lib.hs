@@ -1,6 +1,16 @@
-module Lib
-    ( someFunc
-    ) where
+module Lib where
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+import           Parser
+import           Parser.DebugLevel
+import           Lexer
+
+test :: (Show a) => Parser a -> DebugLevel -> Text -> IO ()
+test parser debugLevel input = do
+  putStrLn "Lexer: "
+  lexTest input
+
+  let Right (_, lexed) = runLexer "test" input
+  let strm = stream "test" input lexed
+
+  putStrLn "Parser: "
+  parseTest parser debugLevel strm
