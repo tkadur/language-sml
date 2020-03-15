@@ -72,14 +72,8 @@ instance M.Stream Stream where
 -- | @sliceInput startPosition endPosition inpt@ returns the portion
 --   of @inpt@ in [@startPosition@, @endPosition@)
 sliceInput :: Position -> Position -> Input -> Input
-sliceInput startPosition endPosition inp =
-  inp |> dropToPosition startPosition |> takeToPosition endPosition
- where
-  dropToPosition :: Position -> Input -> Input
-  dropToPosition position = dropWhile (\(position', _) -> position' < position)
-
-  takeToPosition :: Position -> Input -> Input
-  takeToPosition position = takeWhile (\(position', _) -> position' < position)
+sliceInput startPosition endPosition =
+  filter (\(position, _) -> startPosition <= position && position < endPosition)
 
 -- Factors out common functionality for takeN_ and takeWhile_
 take_ :: Stream -> (STokens, STokens) -> (STokens, Stream)

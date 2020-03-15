@@ -79,8 +79,7 @@ declaration = dbgState ["declaration"]
 
   fixityDecl :: Token -> Parser (Maybe FixityTable.Precedence, Ident)
   fixityDecl keyword = do
-    -- M.try to avoid "infix" and "infixr" clashing
-    M.try $ token_ keyword
+    token_ keyword
     precedence <- M.optional integer
     ident      <- identifier
     -- Precedence must either be unspecified or within [0, 9]
@@ -187,7 +186,7 @@ valueIdentifier = dbg ["valueIdentifier"] $ choice [op, longIdent]
  where
   op = do
     -- M.try in case a longIdent starts with "op"
-    M.try $ token_ Token.Op
+    token_ Token.Op
     ValueIdent.Op <$> valueIdentifier
 
   longIdent = ValueIdent.LongIdent <$> longIdentifier
