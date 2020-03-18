@@ -19,7 +19,7 @@ pattern :: FixityTable -> Parser Pat
 pattern fixityTable = dbg ["pattern"]
   $ FixityTable.makeParser FixityTable.Pat pattern' fixityTable
  where
-  pattern' = choice [wild, lit, var, row, tup, lst, parens, annot, as]
+  pattern' = choice [wild, lit, var, tup, lst, parens]
 
   -- Wildcard
   wild     = dbg ["pattern", "wild"] $ Pat.Wild <$ token_ Token.Underscore
@@ -32,9 +32,6 @@ pattern fixityTable = dbg ["pattern"]
     -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
     dbg ["pattern", "var"] $ try (Pat.Var <$> nonfixValueIdentifier fixityTable)
 
-  -- Record
-  row    = empty
-
   -- Tuple
   tup    = Pat.Tuple <$> tuple (pattern fixityTable)
 
@@ -44,9 +41,3 @@ pattern fixityTable = dbg ["pattern"]
   -- Parenthesized
   -- @try@ to prevent failure from consuming the start of a tuple
   parens = try $ parenthesized (pattern fixityTable)
-
-  -- Annotated
-  annot  = empty
-
-  -- As-pattern
-  as     = empty

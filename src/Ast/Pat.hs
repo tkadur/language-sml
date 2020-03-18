@@ -8,6 +8,7 @@ data Pat
   = Wild
   | Lit Lit
   | Var ValueIdent
+  -- TODO(tkadur) the rest
   | App
     { lhs :: Pat
     , rhs :: Pat

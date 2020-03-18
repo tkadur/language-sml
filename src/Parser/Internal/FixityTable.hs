@@ -147,6 +147,17 @@ basisFixityTable = FixityTable
                         , E.InfixL (expr <$ separator)
                         )
                       ]
+                -- Orelse
+                , let separator = token_ Token.Orelse
+                      pat lhs rhs = Pat.App { Pat.lhs, Pat.rhs }
+                      expr lhs rhs = Expr.App { Expr.lhs, Expr.rhs }
+                  in  [ ( Ident.Ident ""
+                        -- orelse cannot appear in patterns
+                        , E.InfixL (pat <$ separator)
+                        , E.InfixL (expr <$ separator)
+                        )
+                      ]
+                -- Andalso
                 ]
   , operators = HashSet.fromList $ map Ident.Ident (concat basisOperators)
   }

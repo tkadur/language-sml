@@ -18,14 +18,14 @@ module Parser.Internal.Basic
   )
 where
 
-import           Control.Monad.Combinators
-                                         hiding ( endBy1
-                                                , sepBy1
-                                                , some
+import           Control.Monad.Combinators      ( between
+                                                , choice
+                                                , sepBy
                                                 )
 import qualified Control.Monad.Reader          as Reader
 import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
+import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Data.Set                      as Set
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
@@ -33,6 +33,7 @@ import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 import qualified Common.Marked                 as Marked
 import           Parser.DebugLevel              ( DebugLevel )
 import qualified Parser.DebugLevel             as DebugLevel
+import           Parser.Internal.Combinators    ( sepBy2 )
 import           Parser.Internal.Token          ( Token )
 import qualified Parser.Internal.Token         as Token
 import           Parser.Internal.Stream         ( Stream )
@@ -100,5 +101,11 @@ list parser = dbg ["list"] $ brackets (parser `sepBy` token_ Token.Comma)
 
 -- | @tuple p@ parses a tuple, parsing each element with @p@
 tuple :: (Show a) => Parser a -> Parser [a]
-tuple parser =
-  dbg ["tuple"] $ parenthesized (parser `sepBy` token_ Token.Comma)
+tuple parser = dbg ["tuple"] $ parenthesized
+  (choice
+    -- Tuple of at least 2 elements
+    [ NonEmpty.toList <$> parser `sepBy2` token_ Token.Comma
+    -- Empty tuple
+    , return []
+    ]
+  )
