@@ -4,8 +4,8 @@ module Parser.Internal.FixityTable
   , Precedence
   , Operators
   , Infixable(..)
-  , addOperator
-  , removeOperator
+  , addOperators
+  , removeOperators
   , basisFixityTable
   , makeParser
   , operators
@@ -15,6 +15,7 @@ where
 import qualified Control.Monad.Combinators.Expr
                                                as E
 import qualified Data.HashSet                  as HashSet
+import qualified Data.List.NonEmpty            as NonEmpty
 import           Relude.Unsafe                  ( (!!) )
 import qualified Text.Show
 
@@ -83,6 +84,16 @@ getTable infixable = case infixable of
 liftTable :: (TableEntry -> a) -> (Table -> [[a]])
 liftTable = fmap . fmap
 
+addOperators :: NonEmpty Ident
+             -> Associativity
+             -> Precedence
+             -> FixityTable
+             -> FixityTable
+addOperators idents associativity precedence =
+  idents
+    |> NonEmpty.map (\ident -> addOperator ident associativity precedence)
+    |> foldl' (.) id
+
 addOperator :: Ident
             -> Associativity
             -> Precedence
@@ -98,6 +109,9 @@ addOperator ident@(Ident.Ident name) associativity precedence FixityTable { tabl
       |> update precedence (infixExprOperator precedence associativity name :)
 
   operators' = HashSet.insert ident operators
+
+removeOperators :: NonEmpty Ident -> FixityTable -> FixityTable
+removeOperators = foldl' (.) id . NonEmpty.map removeOperator
 
 removeOperator :: Ident -> FixityTable -> FixityTable
 removeOperator ident FixityTable { table, operators } = FixityTable

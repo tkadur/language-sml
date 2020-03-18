@@ -7,16 +7,24 @@ import           Ast.Ident.Ident                ( Ident )
 data Decl
     = Infix
         { precedence :: Maybe Int
-        , ident :: Ident
+        , idents :: NonEmpty Ident
         }
     | Infixr
         { precedence :: Maybe Int
-        , ident :: Ident
+        , idents :: NonEmpty Ident
         }
     | Nonfix
-        { ident :: Ident
+        { idents :: NonEmpty Ident
         }
     | Val
+        { lhs :: Pat
+        , rhs :: Expr
+        }
+    | ValRec
+        { lhs :: Pat
+        , rhs :: Expr
+        }
+    | ValAnd
         { lhs :: Pat
         , rhs :: Expr
         }

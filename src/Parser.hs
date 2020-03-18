@@ -2,10 +2,10 @@ module Parser
   ( module Parser
   , Parser
   , Stream
-  , Internal.toplevel
-  , Internal.declaration
-  , Internal.expression
-  , Internal.pattern
+  , toplevel
+  , declaration
+  , expression
+  , pattern
   , Stream.stream
   )
 where
@@ -15,7 +15,14 @@ import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Error         as E
 
 import           Parser.DebugLevel              ( DebugLevel )
-import           Parser.Internal               as Internal
+import           Parser.Internal.Parsers.Declaration
+                                                ( declaration )
+import           Parser.Internal.Parsers.Expression
+                                                ( expression )
+import           Parser.Internal.Parsers.Pattern
+                                                ( pattern )
+import           Parser.Internal.Parsers.TopLevel
+                                                ( toplevel )
 import           Parser.Internal.Basic          ( Parser
                                                 , Error
                                                 , Comments

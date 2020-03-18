@@ -3,16 +3,26 @@ module Parser.Internal.Basic
   , Error
   , Comments
   , DebugLevel(..)
+  , dbg
+  , dbgState
+  , dbgReader
   , nothing
   , eof
   , token_
   , tokenWith
-  , dbg
-  , dbgState
-  , dbgReader
+  , braces
+  , brackets
+  , parenthesized
+  , list
+  , tuple
   )
 where
 
+import           Control.Monad.Combinators
+                                         hiding ( endBy1
+                                                , sepBy1
+                                                , some
+                                                )
 import qualified Control.Monad.Reader          as Reader
 import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
@@ -68,3 +78,26 @@ token_ tok = M.satisfy (\(_, mtok) -> Marked.value mtok == tok) >> nothing
 
 tokenWith :: (Token -> Maybe a) -> Parser a
 tokenWith f = M.token (\(_, mtok) -> f $ Marked.value mtok) Set.empty
+
+-- | @braces p@ parses @p@ between braces
+braces :: (Show a) => Parser a -> Parser a
+braces = dbg ["braces"] . between (token_ Token.Lbrace) (token_ Token.Rbrace)
+
+-- | @brackets p@ parses @p@ between brackets
+brackets :: (Show a) => Parser a -> Parser a
+brackets =
+  dbg ["brackets"] . between (token_ Token.Lbracket) (token_ Token.Rbracket)
+
+-- | @parenthesized p@ parses @p@ between parentheses
+parenthesized :: (Show a) => Parser a -> Parser a
+parenthesized =
+  dbg ["parenthesized"] . between (token_ Token.Lparen) (token_ Token.Rparen)
+
+-- | @list p@ parses a list, parsing each element with @p@
+list :: (Show a) => Parser a -> Parser [a]
+list parser = dbg ["list"] $ brackets (parser `sepBy` token_ Token.Comma)
+
+-- | @tuple p@ parses a tuple, parsing each element with @p@
+tuple :: (Show a) => Parser a -> Parser [a]
+tuple parser =
+  dbg ["tuple"] $ parenthesized (parser `sepBy` token_ Token.Comma)
