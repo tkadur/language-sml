@@ -21,7 +21,7 @@ import           Parser.Internal.Parsers.Expression
                                                 ( expression )
 import           Parser.Internal.Parsers.Pattern
                                                 ( pattern )
-import           Parser.Internal.Parsers.TopLevel
+import           Parser.Internal.Parsers.Toplevel
                                                 ( toplevel )
 import           Parser.Internal.Basic          ( Parser
                                                 , Error

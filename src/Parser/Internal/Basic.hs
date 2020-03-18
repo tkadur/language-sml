@@ -67,6 +67,7 @@ dbgReader :: (Show a)
           -> ReaderT r Parser a
 dbgReader = Reader.mapReaderT . dbg
 
+-- | Consumes no input and succeeds
 nothing :: Parser ()
 nothing = return ()
 

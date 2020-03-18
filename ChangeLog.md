@@ -1,3 +1,3 @@
-# Changelog for sml-parser
+# Changelog for language-sml
 
 ## Unreleased changes

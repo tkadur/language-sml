@@ -33,7 +33,7 @@ pattern fixityTable = dbg ["pattern"]
     dbg ["pattern", "var"] $ try (Pat.Var <$> nonfixValueIdentifier fixityTable)
 
   -- Record
-  row    = undefined
+  row    = empty
 
   -- Tuple
   tup    = Pat.Tuple <$> tuple (pattern fixityTable)
@@ -43,10 +43,10 @@ pattern fixityTable = dbg ["pattern"]
 
   -- Parenthesized
   -- @try@ to prevent failure from consuming the start of a tuple
-  parens = try . parenthesized $ pattern fixityTable
+  parens = try $ parenthesized (pattern fixityTable)
 
   -- Annotated
-  annot  = undefined
+  annot  = empty
 
   -- As-pattern
-  as     = undefined
+  as     = empty

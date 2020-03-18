@@ -31,6 +31,7 @@ declaration = dbgState ["declaration"]
   $ choice [val, valRec, valAnd, nonfix, infixrDecl, infixDecl]
 
 -- Val declarations
+
 val :: StateT FixityTable Parser Decl
 val = dbgState ["declaration", "val"] $ do
   fixityTable <- get
@@ -66,6 +67,7 @@ valAnd = dbgState ["declaration", "valAnd"] $ do
 -- Fun declarations
 
 -- Fixity declarations
+
 nonfix :: StateT FixityTable Parser Decl
 nonfix = dbgState ["declaration", "nonfix"] $ do
   idents <- lift $ do
