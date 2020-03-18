@@ -10,4 +10,4 @@ data Marked a = Marked
   , startPosition :: Position
   , endPosition :: Position
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Functor, Ord, Show)

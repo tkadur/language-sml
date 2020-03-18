@@ -2,14 +2,19 @@ module Lexer.Token where
 
 import           Data.Scientific                ( Scientific )
 
+import           Ast.Lit.Character              ( Character )
+
 data Token
     = Eof
-    -- Literals
+    -- Numeric literals
     | Int Integer
     | Hex Integer
     | Word Integer
     | HexWord Integer
     | Real Scientific
+    -- Char/string literals
+    | Character [Character]
+    | String [Character]
     -- Misc. symbols
     | Dot
     -- Identifiers

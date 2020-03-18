@@ -2,11 +2,14 @@ module Ast.Lit where
 
 import           Data.Scientific                ( Scientific )
 
+import           Ast.Lit.Character              ( Character )
+
 data Lit
     = Int Integer
     | Hex Integer
     | Word Integer
     | HexWord Integer
     | Real Scientific
-    | String Text
+    | Char [Character]
+    | String [Character]
     deriving (Show)

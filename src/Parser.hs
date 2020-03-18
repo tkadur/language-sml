@@ -2,7 +2,7 @@ module Parser
   ( module Parser
   , Parser
   , Stream
-  , Internal.topLevel
+  , Internal.toplevel
   , Internal.declaration
   , Internal.expression
   , Internal.pattern

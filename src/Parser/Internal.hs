@@ -26,6 +26,7 @@ import           Ast.Ident.LongIdent            ( LongIdent )
 import qualified Ast.Ident.LongIdent           as LongIdent
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import qualified Ast.Ident.ValueIdent          as ValueIdent
+import           Ast.Lit.Character              ( Character )
 import           Ast.Lit                        ( Lit )
 import qualified Ast.Lit                       as Lit
 import           Ast.Pat                        ( Pat )
@@ -38,8 +39,8 @@ import           Parser.Internal.Token          ( Token )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses the toplevel
-topLevel :: Parser [Decl]
-topLevel = dbg ["topLevel"] $ evalStateT decls FixityTable.basisFixityTable
+toplevel :: Parser [Decl]
+toplevel = dbg ["toplevel"] $ evalStateT decls FixityTable.basisFixityTable
   where decls = many declaration
 
 -- | Parses a declaration
@@ -249,11 +250,23 @@ literal = dbg ["literal"] $ choice
   , Lit.Word <$> word
   , Lit.HexWord <$> hexword
   , Lit.Real <$> real
-  -- , Lit.String <$> string
+  , Lit.Char <$> char
+  , Lit.String <$> string
   ]
 
-string :: Parser Text
-string = dbg ["string"] $ undefined
+string :: Parser [Character]
+string = dbg ["string"] $ tokenWith
+  (\case
+    Token.String cs -> Just cs
+    _ -> Nothing
+  )
+
+char :: Parser [Character]
+char = dbg ["char"] $ tokenWith
+  (\case
+    Token.Character cs -> Just cs
+    _ -> Nothing
+  )
 
 -- | Parses an integer literal (in any base)
 integer :: Parser Integer
