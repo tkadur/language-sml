@@ -8,11 +8,12 @@ import           Ast.Ident.TyVar                ( TyVar )
 data Typ
   = TyVar TyVar
   | Record [Row]
+  | TyCon (Long TyCon)
   | App
     { tycon :: Long TyCon
-    , args :: [Typ]
+    , args :: NonEmpty Typ
     }
-  | Tuple [Typ]
+  | Tuple (NonEmpty Typ)
   | Arrow
     { lhs :: Typ
     , rhs :: Typ

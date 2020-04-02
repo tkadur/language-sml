@@ -3,6 +3,8 @@ module Parser.Internal.Parsers.Identifier
   , nonfixValueIdentifier
   , structureIdentifier
   , typeVariable
+  , typeConstructor
+  , label
   , long
   , op
   )
@@ -17,6 +19,8 @@ import qualified Data.HashSet                  as HashSet
 import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
+import           Ast.Ident.Label                ( Label )
+import qualified Ast.Ident.Label               as Label
 import           Ast.Ident.Long                 ( Long )
 import qualified Ast.Ident.Long                as Long
 import           Ast.Ident.Op                   ( Op )
@@ -33,6 +37,8 @@ import qualified Common.Positive               as Positive
 import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
+import           Parser.Internal.Parsers.Literal
+                                                ( decimal )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a value identifier which must not be infixed
@@ -62,6 +68,24 @@ typeVariable = do
   ident <- alphanumeric
 
   return TyVar.TyVar { TyVar.ident, TyVar.leadingPrimes }
+
+typeConstructor :: Parser TyCon
+typeConstructor = do
+  ident <- identifier
+  case ident of
+    "*" -> fail "* is not a valid type constructor"
+    _   -> return (TyCon.TyCon ident)
+
+label :: Parser Label
+label = ident <|> numeric
+ where
+  ident   = Label.Ident <$> identifier
+
+  numeric = do
+    number <- decimal
+    if number <= 0
+      then fail "record labels cannot be nonpositive"
+      else return $ Label.Numeric (Positive.positive number)
 
 -- | Parses an identifier possible prefixed by op
 op :: Parser ident -> Parser (Op ident)

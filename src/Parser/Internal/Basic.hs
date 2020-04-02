@@ -121,9 +121,9 @@ tuple parser = dbg ["tuple"]
 xseq :: (Show a) => Parser a -> Parser [a]
 xseq parser = dbg ["xseq"] $ choice [sqnce, singleton, emptySeq]
  where
-  emptySeq  = return []
+  emptySeq  = dbg ["xseq", "emptySeq"] $ return []
 
-  singleton = (: []) <$> parser
+  singleton = dbg ["xseq", "singleton"] $ (: []) <$> parser
 
-  sqnce =
-    NonEmpty.toList <$> parenthesized (parser `sepBy1` token_ Token.Comma)
+  sqnce     = dbg ["xseq", "sequence"] $ NonEmpty.toList <$> parenthesized
+    (parser `sepBy1` token_ Token.Comma)
