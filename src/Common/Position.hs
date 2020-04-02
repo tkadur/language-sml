@@ -5,7 +5,7 @@ where
 
 data Position = Position
   { file :: FilePath
-  , line :: Int
-  , col :: Int
+  , line :: Natural
+  , col :: Natural
   }
   deriving (Eq, Ord, Show)

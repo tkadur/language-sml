@@ -170,6 +170,7 @@ tokens :-
   -- Identifiers
   <0> $alpha (@alphanum | $underscore | $prime)* { tokWith toText Alphanumeric        }
   <0> @symbols                                   { tokWith toText Symbolic            }
+  <0> "'"                                        { tok Tick                           }
 
   -- Error reporting
   @any                                           { genericLexError                    }
@@ -197,7 +198,7 @@ posn (p, _, _, _) = do
  where
   makePos :: FilePath -> AlexPosn -> Position
   makePos file (AlexPn _ line col) =
-    Position.Position { Position.file, Position.line, Position.col }
+    Position.Position { Position.file, Position.line = toEnum line, Position.col = toEnum col }
 
 str :: AlexInput -> String
 str (_, _, _, s) = s

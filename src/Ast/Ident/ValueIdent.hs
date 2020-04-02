@@ -1,9 +1,6 @@
 module Ast.Ident.ValueIdent where
 
-import           Ast.Ident.LongIdent            ( LongIdent )
+import           Ast.Ident.Common               ( Ident )
 
--- | An identifier, possibly with qualifications and "op" prefixes
-data ValueIdent
-    = LongIdent LongIdent
-    | Op ValueIdent
-    deriving (Show)
+newtype ValueIdent = ValueIdent Ident
+  deriving (Eq, Ord, Hashable, Show)

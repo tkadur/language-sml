@@ -1,28 +1,35 @@
 module Ast.Expr where
 
-import           Ast.Ident.Ident                ( Ident )
 import           Ast.Ident.Label                ( Label )
+import           Ast.Ident.Long                 ( Long )
+import           Ast.Ident.Op                   ( Op )
 import           Ast.Ident.ValueIdent           ( ValueIdent )
+import {-# SOURCE #-} Ast.Decl                  ( Decl )
 import           Ast.Lit                        ( Lit )
 import           Ast.Pat                        ( Pat )
 import           Ast.Typ                        ( Typ )
 
 data Expr
   = Lit Lit
-  | Var ValueIdent
+  | Ident (Op (Long ValueIdent))
   | Record [Row]
   | RecordSelector Label
   | Tuple [Expr]
-  | Sequence [Expr]
-  -- TODO(tkadur) let...in...end
   | List [Expr]
+  | Sequence [Expr]
+  | Let
+    { decl :: Decl
+    , exprs :: NonEmpty Expr
+    }
+    -- For convenience, we directly express application chains instead of
+    -- using nested @App@s.
   | App
-    { lhs :: Expr
-    , rhs :: Expr
+    { function :: Expr
+    , args :: NonEmpty Expr
     }
   | InfixApp
     { lhs :: Expr
-    , op :: Ident
+    , op :: ValueIdent
     , precedence :: Int
     , rhs :: Expr
     }

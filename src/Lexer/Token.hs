@@ -20,6 +20,7 @@ data Token
     -- Identifiers
     | Alphanumeric Text
     | Symbolic Text
+    | Tick -- For type variables
     -- Core reserved words
     | Abstype
     | And

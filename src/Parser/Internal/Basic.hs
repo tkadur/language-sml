@@ -7,6 +7,7 @@ module Parser.Internal.Basic
   , dbgState
   , dbgReader
   , nothing
+  , never
   , eof
   , token_
   , tokenWith
@@ -15,6 +16,7 @@ module Parser.Internal.Basic
   , parenthesized
   , list
   , tuple
+  , xseq
   )
 where
 
@@ -22,6 +24,8 @@ import           Control.Monad.Combinators      ( between
                                                 , choice
                                                 , sepBy
                                                 )
+import           Control.Monad.Combinators.NonEmpty
+                                                ( sepBy1 )
 import qualified Control.Monad.Reader          as Reader
 import qualified Control.Monad.State.Strict    as State
 import           Control.Monad.RWS.Strict       ( RWS )
@@ -72,6 +76,10 @@ dbgReader = Reader.mapReaderT . dbg
 nothing :: Parser ()
 nothing = return ()
 
+-- | Consumes no input and fails
+never :: Parser a
+never = empty
+
 eof :: Parser ()
 eof = token_ Token.Eof >> M.eof
 
@@ -101,11 +109,20 @@ list parser = dbg ["list"] $ brackets (parser `sepBy` token_ Token.Comma)
 
 -- | @tuple p@ parses a tuple, parsing each element with @p@
 tuple :: (Show a) => Parser a -> Parser [a]
-tuple parser = dbg ["tuple"] $ parenthesized
-  (choice
+tuple parser = dbg ["tuple"]
+  $ parenthesized (choice [nonemptyTuple, emptyTuple])
+ where
     -- Tuple of at least 2 elements
-    [ NonEmpty.toList <$> parser `sepBy2` token_ Token.Comma
-    -- Empty tuple
-    , return []
-    ]
-  )
+  nonemptyTuple = NonEmpty.toList <$> parser `sepBy2` token_ Token.Comma
+
+  emptyTuple    = return []
+
+-- | @xseq p@ parses a @pseq@ as given in the definition
+xseq :: (Show a) => Parser a -> Parser [a]
+xseq parser = dbg ["xseq"] $ choice [sqnce, singleton, emptySeq]
+ where
+  emptySeq  = return []
+
+  singleton = (: []) <$> parser
+
+  sqnce     = NonEmpty.toList <$> parser `sepBy1` token_ Token.Comma

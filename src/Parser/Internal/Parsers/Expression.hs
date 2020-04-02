@@ -11,7 +11,10 @@ import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Parsers.Identifier
-                                                ( nonfixValueIdentifier )
+                                                ( nonfixValueIdentifier
+                                                , op
+                                                , long
+                                                )
 import           Parser.Internal.Parsers.Literal
                                                 ( literal )
 import           Parser.Internal.Parsers.Pattern
@@ -37,7 +40,7 @@ expression fixityTable = dbg ["expression"]
   lit = Expr.Lit <$> literal
 
   -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
-  var = try $ (Expr.Var <$> nonfixValueIdentifier fixityTable)
+  var = try $ (Expr.Ident <$> nonfixValueIdentifier fixityTable)
 
   tup = Expr.Tuple <$> tuple (expression fixityTable)
 

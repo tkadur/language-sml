@@ -1,24 +1,49 @@
 module Ast.Pat where
 
-import           Ast.Ident.Ident                ( Ident )
+import           Ast.Ident.Label                ( Label )
+import           Ast.Ident.Long                 ( Long )
+import           Ast.Ident.Op                   ( Op )
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import           Ast.Lit                        ( Lit )
+import           Ast.Typ                        ( Typ )
 
 data Pat
   = Wild
   | Lit Lit
-  | Var ValueIdent
-  -- TODO(tkadur) the rest
-  | App
-    { lhs :: Pat
-    , rhs :: Pat
+  | Ident (Op (Long ValueIdent))
+  | Record [Row]
+  | Tuple [Pat]
+  | List [Pat]
+  | Constructed
+    { constructor :: Op (Long ValueIdent)
+    , arg :: Pat
     }
-  | InfixApp
+  | InfixConstructed
     { lhs :: Pat
-    , op :: Ident
+    , op :: ValueIdent
     , precedence :: Int
     , rhs :: Pat
     }
-  | Tuple [Pat]
-  | List [Pat]
+  | Annot
+    { pat :: Pat
+    , typ :: Typ
+    }
+  | As
+    { ident :: Op ValueIdent
+    , annot :: Maybe Typ
+    , as :: Pat
+    }
+  deriving (Show)
+
+data Row
+  = RowWild
+  | Row
+    { label :: Label
+    , pat :: Pat
+    }
+  | RowPun
+    { ident :: ValueIdent
+    , annot :: Maybe Typ
+    , as :: Maybe Pat
+    }
   deriving (Show)

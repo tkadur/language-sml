@@ -1,12 +1,15 @@
 {-# LANGUAGE EmptyDataDeriving #-}
 
-module Ast.Ident.Label where
+module Ast.Ident.TyVar where
 
 import           Ast.Ident.Common               ( Ident )
+
 import           Common.Positive                ( Positive )
 
--- | A record label
-data Label
-  = Ident Ident
-  | Numeric Positive
+-- | A type variable name
+data TyVar
+  = TyVar
+    { ident :: Ident
+    , leadingPrimes :: Positive
+    }
   deriving (Show)

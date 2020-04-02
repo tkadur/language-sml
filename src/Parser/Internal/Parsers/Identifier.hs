@@ -1,93 +1,110 @@
-module Parser.Internal.Parsers.Identifier where
+module Parser.Internal.Parsers.Identifier
+  ( valueIdentifier
+  , nonfixValueIdentifier
+  , structureIdentifier
+  , typeVariable
+  , long
+  , op
+  )
+where
 
-import           Control.Monad.Combinators      ( choice )
+import           Control.Monad.Combinators      ( choice
+                                                , many
+                                                )
 import           Control.Monad.Combinators.NonEmpty
-                                                ( endBy1 )
+                                                ( some )
 import qualified Data.HashSet                  as HashSet
 import qualified Data.List.NonEmpty            as NonEmpty
-import qualified Relude.Unsafe                 as Unsafe
 import           Text.Megaparsec                ( try )
 
-import           Ast.Ident.Ident                ( Ident )
-import qualified Ast.Ident.Ident               as Ident
-import           Ast.Ident.LongIdent            ( LongIdent )
-import qualified Ast.Ident.LongIdent           as LongIdent
+import           Ast.Ident.Long                 ( Long )
+import qualified Ast.Ident.Long                as Long
+import           Ast.Ident.Op                   ( Op )
+import qualified Ast.Ident.Op                  as Op
+import           Ast.Ident.TyCon                ( TyCon )
+import qualified Ast.Ident.TyCon               as TyCon
+import           Ast.Ident.TyVar                ( TyVar )
+import qualified Ast.Ident.TyVar               as TyVar
+import           Ast.Ident.StructureIdent       ( StructureIdent )
+import qualified Ast.Ident.StructureIdent      as StructureIdent
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import qualified Ast.Ident.ValueIdent          as ValueIdent
+import qualified Common.Positive               as Positive
 import           Parser.Internal.Basic
-import           Parser.Internal.Combinators    ( sepBy2 )
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a value identifier which must not be infixed
-nonfixValueIdentifier :: FixityTable -> Parser ValueIdent
+nonfixValueIdentifier :: FixityTable -> Parser (Op (Long ValueIdent))
 nonfixValueIdentifier fixityTable = do
-  ident <- valueIdentifier
-  case ident of
-    ValueIdent.LongIdent (LongIdent.Ident x) ->
-      if x `HashSet.member` FixityTable.operators fixityTable
-        then fail $ "unexpected infix identifier " ++ show x
-        else return ident
-    _ -> return ident
+  x <- op . long $ valueIdentifier
+  case x of
+    Op.Ident Long.Long { Long.qualifiers = [], Long.ident } ->
+      if ident `HashSet.member` FixityTable.operators fixityTable
+        then fail $ "unexpected infix identifier " ++ show ident
+        else return x
+    _ -> return x
 
--- | Parses a possibly qualified, possible "op"-prefixed identifier
+-- | Parses a value identifier
 valueIdentifier :: Parser ValueIdent
-valueIdentifier = dbg ["valueIdentifier"] $ choice [op, longIdent]
- where
-  op = do
-    -- M.try in case a longIdent starts with "op"
-    token_ Token.Op
-    ValueIdent.Op <$> valueIdentifier
+valueIdentifier = ValueIdent.ValueIdent <$> identifier
 
-  longIdent = ValueIdent.LongIdent <$> longIdentifier
+-- | Parses a structure identifier
+structureIdentifier :: Parser StructureIdent
+structureIdentifier = StructureIdent.StructureIdent <$> alphanumeric
+
+typeVariable :: Parser TyVar
+typeVariable = do
+  ticks <- some (token_ Token.Tick)
+  let leadingPrimes = Positive.positive (NonEmpty.length ticks)
+
+  ident <- alphanumeric
+
+  return TyVar.TyVar { TyVar.ident, TyVar.leadingPrimes }
+
+-- | Parses an identifier possible prefixed by op
+op :: Parser ident -> Parser (Op ident)
+op ident = choice [with, without]
+ where
+  with = do
+    token_ Token.Op
+    Op.Op <$> ident
+
+  without = Op.Ident <$> ident
 
 -- | Parses a possibly qualified identifier
-longIdentifier :: Parser LongIdent
-longIdentifier = dbg ["longIdentifier"]
-  $ choice [qualifiedAlphanum, qualifiedSymbolic, unqualified]
+long :: forall ident . (Show ident) => Parser ident -> Parser (Long ident)
+long p = dbg ["longIdentifier"] $ do
+  qualifiers <- quals
+  ident      <- p
+  return Long.Long { Long.qualifiers, Long.ident = ident }
  where
-  -- | Qualified identifier ending in an alphanumeric identifier
-  qualifiedAlphanum :: Parser LongIdent
-  -- @try@ because this could consume a valid bare identifier
-  qualifiedAlphanum = dbg ["longIdentifier", "qualifiedNonfix"] . try $ do
-    idents <- alphanumeric `sepBy2` token_ Token.Dot
-    let ident = NonEmpty.last idents
-    let qualifiers =
-          idents
-            |> NonEmpty.take (NonEmpty.length idents - 1)
-            |> NonEmpty.nonEmpty
-            |> Unsafe.fromJust
-    return LongIdent.Qualified { LongIdent.qualifiers, LongIdent.ident }
+  qual :: Parser StructureIdent
+  qual = do
+    qualifier <- structureIdentifier
+    token_ Token.Dot
+    return qualifier
 
-  -- | Qualified identifier ending in a symbolic identifier
-  qualifiedSymbolic :: Parser LongIdent
-    -- @try@ because this could consume a valid bare identifier
-  qualifiedSymbolic = dbg ["longIdentifier", "qualifiedInfix"] . try $ do
-    -- @try@ to prevent this from trying and failing to consume the symbolic identifier
-    qualifiers <- endBy1 (try alphanumeric) (token_ Token.Dot)
-    ident      <- bareIdentifier
-    return LongIdent.Qualified { LongIdent.qualifiers, LongIdent.ident }
+  quals :: Parser [StructureIdent]
+  -- @try@ so we don't fail once we reach the end of the qualifiers
+  quals = many (try qual)
 
-  unqualified :: Parser LongIdent
-  unqualified = LongIdent.Ident <$> bareIdentifier
-
--- | Parses a bare identifier
-bareIdentifier :: Parser Ident
-bareIdentifier = alphanumeric <|> symbolic
+identifier :: Parser Text
+identifier = alphanumeric <|> symbolic
 
 -- | Alphanumeric identifiers
-alphanumeric :: Parser Ident
+alphanumeric :: Parser Text
 alphanumeric = dbg ["alphanumeric"] $ tokenWith
   (\case
-    Token.Alphanumeric s -> Just $ Ident.Ident s
+    Token.Alphanumeric s -> Just s
     _ -> Nothing
   )
 
 -- | Symbolic identifiers
-symbolic :: Parser Ident
+symbolic :: Parser Text
 symbolic = dbg ["symbolic"] $ tokenWith
   (\case
-    Token.Symbolic s -> Just $ Ident.Ident s
+    Token.Symbolic s -> Just s
     _ -> Nothing
   )

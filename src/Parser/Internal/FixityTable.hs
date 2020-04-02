@@ -23,8 +23,8 @@ import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
 import           Ast.Pat                        ( Pat )
 import qualified Ast.Pat                       as Pat
-import           Ast.Ident.Ident                ( Ident )
-import qualified Ast.Ident.Ident               as Ident
+import           Ast.Ident.ValueIdent           ( ValueIdent )
+import qualified Ast.Ident.ValueIdent          as ValueIdent
 import           Parser.Internal.Basic
 import qualified Parser.Internal.Token         as Token
 
@@ -32,11 +32,11 @@ type Associativity = forall a . Parser (a -> a -> a) -> E.Operator Parser a
 
 type Precedence = Int
 
-type TableEntry = (Ident, E.Operator Parser Pat, E.Operator Parser Expr)
+type TableEntry = (ValueIdent, E.Operator Parser Pat, E.Operator Parser Expr)
 
 type Table = [[TableEntry]]
 
-type Operators = HashSet Ident
+type Operators = HashSet ValueIdent
 
 data FixityTable = FixityTable
   { table :: Table
@@ -74,7 +74,7 @@ getTable infixable = case infixable of
   getPatTable :: Table -> [[E.Operator Parser Pat]]
   getPatTable =
     -- Patterns cannot contain infix "="
-    removeOperatorFromTable (Ident.Ident "=")
+    removeOperatorFromTable (ValueIdent.ValueIdent "=")
       >>> (liftTable $ \(_, patTable, _) -> patTable)
 
   getExprTable :: Table -> [[E.Operator Parser Expr]]
@@ -84,7 +84,7 @@ getTable infixable = case infixable of
 liftTable :: (TableEntry -> a) -> (Table -> [[a]])
 liftTable = fmap . fmap
 
-addOperators :: NonEmpty Ident
+addOperators :: NonEmpty ValueIdent
              -> Associativity
              -> Precedence
              -> FixityTable
@@ -94,12 +94,12 @@ addOperators idents associativity precedence =
     |> NonEmpty.map (\ident -> addOperator ident associativity precedence)
     |> foldl' (.) id
 
-addOperator :: Ident
+addOperator :: ValueIdent
             -> Associativity
             -> Precedence
             -> FixityTable
             -> FixityTable
-addOperator ident@(Ident.Ident name) associativity precedence FixityTable { table, operators }
+addOperator ident@(ValueIdent.ValueIdent name) associativity precedence FixityTable { table, operators }
   = FixityTable { table = table', operators = operators' }
  where
   table' =
@@ -110,10 +110,10 @@ addOperator ident@(Ident.Ident name) associativity precedence FixityTable { tabl
 
   operators' = HashSet.insert ident operators
 
-removeOperators :: NonEmpty Ident -> FixityTable -> FixityTable
+removeOperators :: NonEmpty ValueIdent -> FixityTable -> FixityTable
 removeOperators = foldl' (.) id . NonEmpty.map removeOperator
 
-removeOperator :: Ident -> FixityTable -> FixityTable
+removeOperator :: ValueIdent -> FixityTable -> FixityTable
 removeOperator ident FixityTable { table, operators } = FixityTable
   { table     = table'
   , operators = operators'
@@ -122,44 +122,58 @@ removeOperator ident FixityTable { table, operators } = FixityTable
   table'     = removeOperatorFromTable ident table
   operators' = HashSet.delete ident operators
 
-removeOperatorFromTable :: Ident -> Table -> Table
+removeOperatorFromTable :: ValueIdent -> Table -> Table
 removeOperatorFromTable ident =
   map $ filter (\(ident', _, _) -> ident' /= ident)
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
-  { table     = [ infixExprOperator 0 E.InfixL <$> (basisOperators !! 0)
-                , []
-                , []
-                , infixExprOperator 3 E.InfixL <$> (basisOperators !! 3)
-                , infixExprOperator 4 E.InfixL <$> (basisOperators !! 4)
-                , infixExprOperator 5 E.InfixR <$> (basisOperators !! 5)
-                , infixExprOperator 6 E.InfixL <$> (basisOperators !! 6)
-                , infixExprOperator 7 E.InfixL <$> (basisOperators !! 7)
-                , []
-                , []
-                  -- Application
-                , let separator = nothing
-                      pat lhs rhs = Pat.App { Pat.lhs, Pat.rhs }
-                      expr lhs rhs = Expr.App { Expr.lhs, Expr.rhs }
-                  in  [ ( Ident.Ident ""
-                        , E.InfixL (pat <$ separator)
-                        , E.InfixL (expr <$ separator)
-                        )
-                      ]
-                -- Orelse
-                , let separator = token_ Token.Orelse
-                      pat lhs rhs = Pat.App { Pat.lhs, Pat.rhs }
-                      expr lhs rhs = Expr.App { Expr.lhs, Expr.rhs }
-                  in  [ ( Ident.Ident ""
-                        -- orelse cannot appear in patterns
-                        , E.InfixL (pat <$ separator)
-                        , E.InfixL (expr <$ separator)
-                        )
-                      ]
-                -- Andalso
-                ]
-  , operators = HashSet.fromList $ map Ident.Ident (concat basisOperators)
+  { table     =
+    [ infixExprOperator 0 E.InfixL <$> (basisOperators !! 0)
+    , []
+    , []
+    , infixExprOperator 3 E.InfixL <$> (basisOperators !! 3)
+    , infixExprOperator 4 E.InfixL <$> (basisOperators !! 4)
+    , infixExprOperator 5 E.InfixR <$> (basisOperators !! 5)
+    , infixExprOperator 6 E.InfixL <$> (basisOperators !! 6)
+    , infixExprOperator 7 E.InfixL <$> (basisOperators !! 7)
+    , []
+    , []
+      -- Orelse
+    , [ let separator = token_ Token.Orelse
+            pat       = error "patterns cannot contain orelse"
+            expr lhs rhs = Expr.Orelse { Expr.lhs, Expr.rhs }
+        in  ( ValueIdent.ValueIdent "orelse"
+              -- orelse cannot appear in patterns
+            , E.InfixL (pat <$ never)
+            , E.InfixL (expr <$ separator)
+            )
+      ]
+      -- Andalso
+    , [ let separator = token_ Token.Andalso
+            pat       = error "patterns cannot contain andalso"
+            expr lhs rhs = Expr.Andalso { Expr.lhs, Expr.rhs }
+        in  ( ValueIdent.ValueIdent "andalso"
+              -- andalso cannot appear in patterns
+            , E.InfixL (pat <$ never)
+            , E.InfixL (expr <$ separator)
+            )
+      ]
+      -- Application
+    , [ let
+          separator = nothing
+          pat       = error "patterns cannot contain application"
+          expr function arg = Expr.App { Expr.function, Expr.args = arg :| [] }
+        in
+          ( ValueIdent.ValueIdent ""
+          -- application cannot appear in patterns
+          , E.InfixL (pat <$ never)
+          , E.InfixL (expr <$ separator)
+          )
+      ]
+    ]
+  , operators = HashSet.fromList
+                  $ map ValueIdent.ValueIdent (concat basisOperators)
   }
  where
   basisOperators =
@@ -205,18 +219,21 @@ basisFixityTable = FixityTable
 
 infixExprOperator :: Precedence -> Associativity -> Text -> TableEntry
 infixExprOperator precedence operator name =
-  (Ident.Ident name, operator (pat <$ separator), operator (expr <$ separator))
+  ( ValueIdent.ValueIdent name
+  , operator (pat <$ separator)
+  , operator (expr <$ separator)
+  )
  where
   separator = token_ (Token.Alphanumeric name) <|> token_ (Token.Symbolic name)
 
   expr lhs rhs = Expr.InfixApp { Expr.lhs
-                               , Expr.op         = Ident.Ident name
+                               , Expr.op         = ValueIdent.ValueIdent name
                                , Expr.precedence
                                , Expr.rhs
                                }
 
-  pat lhs rhs = Pat.InfixApp { Pat.lhs
-                             , Pat.op         = Ident.Ident name
-                             , Pat.precedence
-                             , Pat.rhs
-                             }
+  pat lhs rhs = Pat.InfixConstructed { Pat.lhs
+                                     , Pat.op = ValueIdent.ValueIdent name
+                                     , Pat.precedence
+                                     , Pat.rhs
+                                     }
