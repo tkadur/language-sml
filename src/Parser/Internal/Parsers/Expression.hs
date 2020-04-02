@@ -11,10 +11,7 @@ import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Parsers.Identifier
-                                                ( nonfixValueIdentifier
-                                                , op
-                                                , long
-                                                )
+                                                ( nonfixValueIdentifier )
 import           Parser.Internal.Parsers.Literal
                                                 ( literal )
 import           Parser.Internal.Parsers.Pattern

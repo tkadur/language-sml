@@ -41,30 +41,28 @@ val :: StateT FixityTable Parser Decl
 val = do
   lift $ token_ Token.Val
 
-  maybeRec <- lift . M.observing . M.try $ token_ Token.Rec
-  let isRec = case maybeRec of
-        Left  _  -> False
-        Right () -> True
-
   tyvars    <- lift $ xseq typeVariable
 
   firstBind <- valBind nothing
   andBinds  <- many $ valBind (token_ Token.And)
 
-  return Decl.Val { Decl.isRec
-                  , Decl.tyvars
-                  , Decl.valbinds = firstBind :| andBinds
-                  }
+  return Decl.Val { Decl.tyvars, Decl.valbinds = firstBind :| andBinds }
 
 valBind :: Parser () -> StateT FixityTable Parser Decl.ValBind
 valBind start = dbgState ["delaration", "val", "valbind"] $ do
   fixityTable <- get
   lift $ do
     start
+
+    maybeRec <- M.observing (token_ Token.Rec)
+    let isRec = case maybeRec of
+          Left  _  -> False
+          Right () -> True
+
     lhs <- pattern fixityTable
     token_ Token.Equal
     rhs <- expression fixityTable
-    return Decl.ValBind { Decl.lhs, Decl.rhs }
+    return Decl.ValBind { Decl.isRec, Decl.lhs, Decl.rhs }
 
 -- val :: StateT FixityTable Parser Decl
 -- val = dbgState ["declaration", "val"] $ do

@@ -12,8 +12,7 @@ import           Ast.Typ                        ( Typ )
 
 data Decl
   = Val
-    { isRec :: Bool
-    , tyvars :: [TyVar]
+    { tyvars :: [TyVar]
     , valbinds :: ValBinds
     }
   | Fun
@@ -72,7 +71,8 @@ type ExnBinds = NonEmpty ExnBind
 
 data ValBind
   = ValBind
-    { lhs :: Pat
+    { isRec :: Bool
+    , lhs :: Pat
     , rhs :: Expr
     }
   deriving (Show)

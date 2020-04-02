@@ -125,4 +125,5 @@ xseq parser = dbg ["xseq"] $ choice [sqnce, singleton, emptySeq]
 
   singleton = (: []) <$> parser
 
-  sqnce     = NonEmpty.toList <$> parser `sepBy1` token_ Token.Comma
+  sqnce =
+    NonEmpty.toList <$> parenthesized (parser `sepBy1` token_ Token.Comma)
