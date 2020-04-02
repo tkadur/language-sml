@@ -13,7 +13,7 @@ import           Control.Applicative.Combinators.NonEmpty
 import qualified Control.Monad.Combinators.Expr
                                                as E
 import qualified Data.List.NonEmpty            as NonEmpty
-import qualified Text.Megaparsec               as M
+import           Text.Megaparsec                ( try )
 
 import           Ast.Typ                        ( Typ )
 import qualified Ast.Typ                       as Typ
@@ -34,11 +34,11 @@ typ = dbg ["typ"] maybeSingleArgApp
   maybeSingleArgApp = do
     arg         <- typ'
     maybeTycons <- optional $ some (long typeConstructor)
-    case maybeTycons of
-      Nothing -> return arg
-      Just (tycon :| tycons) -> return $ foldl'
+    return $ case maybeTycons of
+      Nothing -> arg
+      Just (tycon :| tycons) -> foldl'
         (\t con -> Typ.App { Typ.tycon = con, args = t :| [] })
-        Typ.App { Typ.tycon, Typ.args = arg :| [] }
+        (Typ.App { Typ.tycon, Typ.args = arg :| [] })
         tycons
 
   typ'          = E.makeExprParser typ'' operatorTable
@@ -59,7 +59,7 @@ typ = dbg ["typ"] maybeSingleArgApp
 
 -- Application where left recursion isn't an issue
 multiArgApp :: Parser Typ
-multiArgApp = dbg ["typ", "multiArgApp"] . M.try $ do
+multiArgApp = dbg ["typ", "multiArgApp"] . try $ do
   args  <- parenthesized (typ `sepBy1` token_ Token.Comma)
   tycon <- long typeConstructor
 
