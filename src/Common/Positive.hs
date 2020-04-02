@@ -6,7 +6,7 @@ module Common.Positive
 where
 
 newtype Positive = Positive Integer
-  deriving (Show)
+  deriving (Eq, Num, Ord, Show)
 
 positive :: (Integral i) => i -> Positive
 positive n | n <= 0    = error "input isn't positive"

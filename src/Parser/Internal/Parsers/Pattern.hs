@@ -19,29 +19,31 @@ pattern :: FixityTable -> Parser Pat
 pattern fixityTable = dbg ["pattern"]
   $ FixityTable.makeParser FixityTable.Pat pattern' fixityTable
  where
-  pattern' = choice [wild, lit, var, tup, lst, constructed, parens]
+  pattern'    = choice [wild, lit, constructed, var, tup, lst, parens]
 
   -- Wildcard
-  wild     = dbg ["pattern", "wild"] $ Pat.Wild <$ token_ Token.Underscore
+  wild        = dbg ["pattern", "wild"] $ Pat.Wild <$ token_ Token.Underscore
 
   -- Literal
-  lit      = dbg ["pattern", "lit"] $ Pat.Lit <$> literal
+  lit         = dbg ["pattern", "lit"] $ Pat.Lit <$> literal
 
-  -- Variable
-  var      = dbg ["pattern", "var"]
-    -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
-    $ try (Pat.Ident <$> nonfixValueIdentifier fixityTable)
-
-  -- Tuple
-  tup         = Pat.Tuple <$> tuple (pattern fixityTable)
-
-  -- List
-  lst         = Pat.List <$> list (pattern fixityTable)
-
-  constructed = do
+  -- Constructor application
+  -- @try@ to prevent failure from trying to parse variable as constructor
+  constructed = try $ do
     constructor <- nonfixValueIdentifier fixityTable
     arg         <- pattern fixityTable
     return Pat.Constructed { Pat.constructor, Pat.arg }
+
+  -- Variable
+  var = dbg ["pattern", "var"]
+    -- @try@ to prevent failure from trying to parse infix operator as var
+    $ try (Pat.Ident <$> nonfixValueIdentifier fixityTable)
+
+  -- Tuple
+  tup    = Pat.Tuple <$> tuple (pattern fixityTable)
+
+  -- List
+  lst    = Pat.List <$> list (pattern fixityTable)
 
   -- Parenthesized
   -- @try@ to prevent failure from consuming the start of a tuple

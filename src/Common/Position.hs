@@ -3,9 +3,11 @@ module Common.Position
   )
 where
 
+import           Common.Positive                ( Positive )
+
 data Position = Position
   { file :: FilePath
-  , line :: Natural
-  , col :: Natural
+  , line :: Positive
+  , col :: Positive
   }
   deriving (Eq, Ord, Show)

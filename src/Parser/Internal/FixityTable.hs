@@ -106,7 +106,8 @@ addOperator ident@(ValueIdent.ValueIdent name) associativity precedence FixityTa
     table
       |> removeOperatorFromTable ident
       -- Add ident to the operator table
-      |> update precedence (infixExprOperator precedence associativity name :)
+      |> update (precedence + precedenceOffset)
+                (infixExprOperator precedence associativity name :)
 
   operators' = HashSet.insert ident operators
 
@@ -126,21 +127,15 @@ removeOperatorFromTable :: ValueIdent -> Table -> Table
 removeOperatorFromTable ident =
   map $ filter (\(ident', _, _) -> ident' /= ident)
 
+-- | Accounts for magical low precedence things in the fixity table like andalso/orelse
+precedenceOffset :: Int
+precedenceOffset = 2
+
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
   { table     =
-    [ infixExprOperator 0 E.InfixL <$> (basisOperators !! 0)
-    , []
-    , []
-    , infixExprOperator 3 E.InfixL <$> (basisOperators !! 3)
-    , infixExprOperator 4 E.InfixL <$> (basisOperators !! 4)
-    , infixExprOperator 5 E.InfixR <$> (basisOperators !! 5)
-    , infixExprOperator 6 E.InfixL <$> (basisOperators !! 6)
-    , infixExprOperator 7 E.InfixL <$> (basisOperators !! 7)
-    , []
-    , []
-      -- Orelse
-    , [ let separator = token_ Token.Orelse
+    [ -- Orelse
+      [ let separator = token_ Token.Orelse
             pat       = error "patterns cannot contain orelse"
             expr lhs rhs = Expr.Orelse { Expr.lhs, Expr.rhs }
         in  ( ValueIdent.ValueIdent "orelse"
@@ -159,6 +154,16 @@ basisFixityTable = FixityTable
             , E.InfixL (expr <$ separator)
             )
       ]
+    , infixExprOperator 0 E.InfixL <$> (basisOperators !! 0)
+    , []
+    , []
+    , infixExprOperator 3 E.InfixL <$> (basisOperators !! 3)
+    , infixExprOperator 4 E.InfixL <$> (basisOperators !! 4)
+    , infixExprOperator 5 E.InfixR <$> (basisOperators !! 5)
+    , infixExprOperator 6 E.InfixL <$> (basisOperators !! 6)
+    , infixExprOperator 7 E.InfixL <$> (basisOperators !! 7)
+    , []
+    , []
       -- Application
     , [ let
           separator = nothing

@@ -13,6 +13,8 @@ import           Common.Marked                  ( Marked )
 import qualified Common.Marked                 as Marked
 import           Common.Position                ( Position )
 import qualified Common.Position               as Position
+import           Common.Positive                ( Positive )
+import qualified Common.Positive               as Positive
 import qualified Lexer.Token
 
 type Input = [(Position, Char)]
@@ -67,7 +69,51 @@ instance M.Stream Stream where
   tokensLength Proxy = length . M.showTokens proxy
 
   reachOffset :: Int -> M.PosState Stream -> (String, M.PosState Stream)
-  reachOffset = undefined
+  reachOffset offset M.PosState {..} = (offendingLine, posState')
+   where
+    offendingLine =
+      let res = inputToString $ filter
+            (\(Position.Position { line }, c) ->
+              -- Only keep the desired line and don't include newline at end
+              c /= '\n' && positiveToPos line == M.sourceLine pstateSourcePos'
+            )
+            input
+      in  if res == ""
+            -- Handle empty line
+            then "<empty line>"
+            -- Replace tabs with spaces
+            else concatMap
+              (\case
+                '\t' -> replicate (M.unPos pstateTabWidth) ' '
+                c    -> [c]
+              )
+              res
+
+    posState' = M.PosState { pstateInput      = pstateInput'
+                           , pstateOffset     = offset
+                           , pstateSourcePos  = pstateSourcePos'
+                           , pstateTabWidth
+                           , pstateLinePrefix
+                           }
+
+    tokens'          = drop (offset - 1) tokens
+    pstateInput'     = Stream { input, tokens = tokens' }
+    pstateSourcePos' = case (last <$> NonEmpty.nonEmpty tokens, tokens') of
+      (Just token, []) -> positionToSourcePos $ Marked.endPosition token
+      (Nothing, []) -> pstateSourcePos
+      (_, token : _) -> positionToSourcePos $ Marked.startPosition token
+
+    Stream { input, tokens } = pstateInput
+
+    positiveToPos :: Positive -> M.Pos
+    positiveToPos = M.mkPos . fromInteger . Positive.unPositive
+
+    positionToSourcePos :: Position -> M.SourcePos
+    positionToSourcePos Position.Position {..} = M.SourcePos
+      { M.sourceName   = file
+      , M.sourceLine   = positiveToPos line
+      , M.sourceColumn = positiveToPos col
+      }
 
 -- | @sliceInput startPosition endPosition inpt@ returns the portion
 --   of @inpt@ in [@startPosition@, @endPosition@)

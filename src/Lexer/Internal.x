@@ -9,6 +9,7 @@ import qualified Common.Marked                 as Marked
 import           Common.Marked                  ( Marked )
 import qualified Common.Position               as Position
 import           Common.Position                ( Position )
+import qualified Common.Positive               as Positive
 
 import           Ast.Lit.Character
 import           Lexer.Token
@@ -197,8 +198,11 @@ posn (p, _, _, _) = do
   return $ makePos file p
  where
   makePos :: FilePath -> AlexPosn -> Position
-  makePos file (AlexPn _ line col) =
-    Position.Position { Position.file, Position.line = toEnum line, Position.col = toEnum col }
+  makePos file (AlexPn _ line col) = Position.Position
+    { Position.file
+    , Position.line = Positive.positive line
+    , Position.col  = Positive.positive col
+    }
 
 str :: AlexInput -> String
 str (_, _, _, s) = s
@@ -413,9 +417,9 @@ getString = do
   AlexUserState {..} <- getUst
 
   let mode          = fromMaybe (error "no in-progress string") currStringMode
-  let contents      = fromMaybe (error "no in-progress string") currStringContents
+  let contents = fromMaybe (error "no in-progress string") currStringContents
   let startPosition = fromMaybe (error "no in-progress string") currStringPos
-  let endPosition   = advance startPosition (printf "\"%s\"" $ toString contents)
+  let endPosition = advance startPosition (printf "\"%s\"" $ toString contents)
 
   value <- case mode of
     StringMode -> return $ String (reverse contents)
@@ -592,4 +596,5 @@ runAlex' file input (Alex f) = snd <$> f initState
                         , alex_ust   = alexInitUserState' file
                         , alex_scd   = 0
                         }
+
 }
