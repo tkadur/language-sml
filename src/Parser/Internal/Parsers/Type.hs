@@ -1,5 +1,6 @@
 module Parser.Internal.Parsers.Type
   ( typ
+  , maybeAnnot
   )
 where
 
@@ -26,6 +27,15 @@ import           Parser.Internal.Parsers.Identifier
                                                 , long
                                                 )
 import qualified Parser.Internal.Token         as Token
+
+-- | Handle left-recursive type annotations
+maybeAnnot :: Parser a -> (a -> Typ -> a) -> Parser a
+maybeAnnot p f = do
+  x           <- p
+  maybeAnnots <- optional $ some (token_ Token.Colon >> typ)
+  return $ case maybeAnnots of
+    Nothing -> x
+    Just (annot :| annots) -> foldl' f (f x annot) annots
 
 typ :: Parser Typ
 typ = dbg ["typ"] maybeSingleArgApp
