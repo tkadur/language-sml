@@ -42,6 +42,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
         in  E.InfixL (tup <$ separator)
       ]
     , -- Type constructor application
+      -- TODO(tkadur) parse this properly instead of letting RHS be an arbitrary type
       [ let app arg tycon = Typ.App { Typ.args = arg :| [], Typ.tycon }
             separator = nothing
         in  E.InfixL (app <$ separator)

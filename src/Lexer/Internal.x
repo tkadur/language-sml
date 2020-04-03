@@ -112,7 +112,7 @@ tokens :-
   <0> "do"                                       { tok Do                             }
   <0> "else"                                     { tok Else                           }
   <0> "end"                                      { tok End                            }
-  <0> "exception                                 { tok Exception                      }
+  <0> "exception"                                { tok Exception                      }
   <0> "fn"                                       { tok Fn                             }
   <0> "fun"                                      { tok Fun                            }
   <0> "handle"                                   { tok Handle                         }

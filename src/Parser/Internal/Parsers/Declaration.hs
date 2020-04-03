@@ -9,7 +9,9 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( some )
-import qualified Text.Megaparsec               as M
+import           Text.Megaparsec                ( observing
+                                                , try
+                                                )
 
 import           Ast.Associativity              ( Associativity )
 import qualified Ast.Associativity             as Associativity
@@ -49,7 +51,18 @@ declaration = dbgState ["declaration"] $ do
     _      -> Decl.Sequence decls
  where
   declaration' = choice
-    [val, typAlias, datatype, localInEnd, open, nonfix, infixrDecl, infixDecl]
+    [ val
+    , typAlias
+    , datatypeReplication
+    , datatype
+    , abstype
+    , exception
+    , localInEnd
+    , open
+    , nonfix
+    , infixrDecl
+    , infixDecl
+    ]
 
 -- Val declarations
 
@@ -66,7 +79,7 @@ valBind start = dbgState ["delaration", "val", "valbind"] $ do
   lift $ do
     start
 
-    maybeRec <- M.observing (token_ Token.Rec)
+    maybeRec <- observing (token_ Token.Rec)
     let isRec = case maybeRec of
           Left  _  -> False
           Right () -> True
@@ -79,14 +92,15 @@ valBind start = dbgState ["delaration", "val", "valbind"] $ do
 -- Fun declarations
 
 -- Type aliases
+
 typAlias :: StateT FixityTable Parser Decl
-typAlias = do
+typAlias = dbgState ["declaration", "typAlias"] $ do
   lift $ token_ Token.Type
   typbinds <- binds Token.And typBind
   return Decl.TypAlias { Decl.typbinds }
 
 typBind :: Parser () -> StateT FixityTable Parser Decl.TypBind
-typBind start = lift $ do
+typBind start = dbgState ["declaration", "typAlias", "typBind"] . lift $ do
   start
   tyvars <- xseq typeVariable
   tycon  <- typeConstructor
@@ -94,10 +108,25 @@ typBind start = lift $ do
   t <- typ
   return Decl.TypBind { Decl.tyvars, Decl.tycon, Decl.typ = t }
 
--- Datatype declarations/replication
+-- Datatype replication
+
+datatypeReplication :: StateT FixityTable Parser Decl
+datatypeReplication =
+  dbgState ["declaration", "datatypeReplication"] . lift $ do
+  -- @try@ to prevent conflict with regular datatype declarations
+    new <- try $ do
+      token_ Token.Datatype
+      new <- typeConstructor
+      token_ Token.Equal
+      token_ Token.Datatype
+      return new
+    old <- long typeConstructor
+    return Decl.DatatypeReplication { Decl.new, Decl.old }
+
+-- Datatype declaration
 
 datatype :: StateT FixityTable Parser Decl
-datatype = do
+datatype = dbgState ["declaration", "datatype"] $ do
   lift $ token_ Token.Datatype
   datbinds <- binds Token.And datBind
   withtype <- optional $ do
@@ -106,7 +135,7 @@ datatype = do
   return Decl.Datatype { Decl.datbinds, Decl.withtype }
 
 datBind :: Parser () -> StateT FixityTable Parser Decl.DatBind
-datBind start = do
+datBind start = dbgState ["declaration", "datatype", "datBind"] $ do
   lift start
   tyvars <- lift $ xseq typeVariable
   tycon  <- lift typeConstructor
@@ -115,19 +144,50 @@ datBind start = do
   return Decl.DatBind { Decl.tyvars, Decl.tycon, Decl.conbinds }
 
 conBind :: Parser () -> StateT FixityTable Parser Decl.ConBind
-conBind start = lift $ do
-  start
-  constructor <- op valueIdentifier
-  arg         <- optional $ do
-    token_ Token.Of
-    typ
-  return Decl.ConBind { Decl.constructor, Decl.arg }
+conBind start =
+  dbgState ["declaration", "datatype", "datBind", "conBind"] . lift $ do
+    start
+    constructor <- op valueIdentifier
+    arg         <- optional (token_ Token.Of >> typ)
+    return Decl.ConBind { Decl.constructor, Decl.arg }
 
 -- Abstype declarations
+abstype :: StateT FixityTable Parser Decl
+abstype = dbgState ["declaration", "abstype"] $ do
+  lift $ token_ Token.Abstype
+  datbinds <- binds Token.And datBind
+  withtype <- optional $ do
+    lift $ token_ Token.Withtype
+    binds Token.And typBind
+  lift $ token_ Token.With
+  decl <- declaration
+  return Decl.Abstype { Decl.datbinds, Decl.withtype, Decl.decl }
 
 -- Exception declarations
+exception :: StateT FixityTable Parser Decl
+exception = dbgState ["declaration", "exception"] $ do
+  lift $ token_ Token.Exception
+  exnbinds <- binds Token.And exnBind
+  return Decl.Exception { Decl.exnbinds }
+
+exnBind :: Parser () -> StateT FixityTable Parser Decl.ExnBind
+exnBind start = dbgState ["declaration", "exception", "exnBind"] . lift $ do
+  start
+  choice [replication, regular]
+ where
+  replication = do
+    -- @try@ to prevent conflict with regular exnbinds
+    new <- try (op valueIdentifier << token_ Token.Equal)
+    old <- op (long valueIdentifier)
+    return Decl.ExnReplication { Decl.new, Decl.old }
+
+  regular = do
+    constructor <- op valueIdentifier
+    arg         <- optional (token_ Token.Of >> typ)
+    return Decl.ExnBind { Decl.constructor, Decl.arg }
 
 -- Common functionality for chained bindings
+
 binds :: Token
       -> (Parser () -> StateT FixityTable Parser a)
       -> StateT FixityTable Parser (NonEmpty a)
@@ -137,6 +197,7 @@ binds separator bind = do
   return $ firstBind :| andBinds
 
 -- Local blocks
+
 localInEnd :: StateT FixityTable Parser Decl
 localInEnd = dbgState ["declaration", "localInEnd"] $ do
   -- Store old fixity table
@@ -166,6 +227,7 @@ localInEnd = dbgState ["declaration", "localInEnd"] $ do
     _ -> return ()
 
 -- Open directives
+
 open :: StateT FixityTable Parser Decl
 open = dbgState ["declaration", "open"] . lift $ do
   token_ Token.Open
