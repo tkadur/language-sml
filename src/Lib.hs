@@ -12,5 +12,6 @@ test parser debugLevel input = do
   let Right (_, lexed) = runLexer "test" input
   let strm = stream "test" input lexed
 
+  putStrLn ""
   putStrLn "Parser: "
   parseTest parser debugLevel strm

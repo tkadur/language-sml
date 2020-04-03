@@ -10,7 +10,7 @@ data Typ
   | Record [Row]
   | TyCon (Long TyCon)
   | App
-    { tycon :: Typ
+    { tycons :: NonEmpty (Long TyCon)
     , args :: NonEmpty Typ
     }
   | Tuple (NonEmpty Typ)

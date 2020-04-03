@@ -4,6 +4,7 @@ module Parser.Internal.Parsers.Type
 where
 
 import           Control.Monad.Combinators      ( choice
+                                                , many
                                                 , sepBy
                                                 )
 import           Control.Applicative.Combinators.NonEmpty
@@ -28,7 +29,16 @@ import qualified Parser.Internal.Token         as Token
 typ :: Parser Typ
 typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
  where
-  typ'          = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
+  typ' = do
+    arg         <- typ''
+    -- @try@ to prevent trying to parse * as tycon
+    maybeTycons <- many (long $ try typeConstructor)
+    return $ case maybeTycons of
+      [] -> arg
+      tycon : tycons ->
+        Typ.App { Typ.args = arg :| [], Typ.tycons = tycon :| tycons }
+
+  typ''         = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
 
   operatorTable = reverse
     [
@@ -41,21 +51,16 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
               _ -> Nothing
         in  E.InfixL (tup <$ separator)
       ]
-    , -- Type constructor application
-      -- TODO(tkadur) parse this properly instead of letting RHS be an arbitrary type
-      [ let app arg tycon = Typ.App { Typ.args = arg :| [], Typ.tycon }
-            separator = nothing
-        in  E.InfixL (app <$ separator)
-      ]
     ]
 
 -- Application where left recursion isn't an issue
 multiArgApp :: Parser Typ
 multiArgApp = dbg ["typ", "multiArgApp"] . try $ do
-  args  <- parenthesized (typ `sepBy1` token_ Token.Comma)
-  tycon <- Typ.TyCon <$> long typeConstructor
+  args   <- parenthesized (typ `sepBy1` token_ Token.Comma)
+  -- @try@ to prevent trying to parse * as tycon
+  tycons <- some (long $ try typeConstructor)
 
-  return Typ.App { Typ.tycon, Typ.args }
+  return Typ.App { Typ.tycons, Typ.args }
 
 -- Parenthesized
 parens :: Parser Typ
