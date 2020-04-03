@@ -4,4 +4,4 @@ module Ast.Ident.Op where
 data Op ident
   = Ident ident
   | Op ident
-  deriving (Show)
+  deriving (Eq, Show)

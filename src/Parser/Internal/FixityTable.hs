@@ -1,6 +1,5 @@
 module Parser.Internal.FixityTable
   ( FixityTable()
-  , Associativity
   , Precedence
   , Operators
   , Infixable(..)
@@ -19,6 +18,8 @@ import qualified Data.List.NonEmpty            as NonEmpty
 import           Relude.Unsafe                  ( (!!) )
 import qualified Text.Show
 
+import           Ast.Associativity              ( Associativity )
+import qualified Ast.Associativity             as Associativity
 import           Ast.Expr                       ( Expr )
 import qualified Ast.Expr                      as Expr
 import           Ast.Pat                        ( Pat )
@@ -27,8 +28,6 @@ import           Ast.Ident.ValueIdent           ( ValueIdent )
 import qualified Ast.Ident.ValueIdent          as ValueIdent
 import           Parser.Internal.Basic
 import qualified Parser.Internal.Token         as Token
-
-type Associativity = forall a . Parser (a -> a -> a) -> E.Operator Parser a
 
 type Precedence = Int
 
@@ -129,12 +128,12 @@ removeOperatorFromTable ident =
 
 -- | Accounts for magical low precedence things in the fixity table like andalso/orelse
 precedenceOffset :: Int
-precedenceOffset = 2
+precedenceOffset = 0
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
   { table     =
-    [ -- Orelse
+    [ {- -- Orelse
       [ let separator = token_ Token.Orelse
             pat       = error "patterns cannot contain orelse"
             expr lhs rhs = Expr.Orelse { Expr.lhs, Expr.rhs }
@@ -154,14 +153,15 @@ basisFixityTable = FixityTable
             , E.InfixL (expr <$ separator)
             )
       ]
-    , infixExprOperator 0 E.InfixL <$> (basisOperators !! 0)
+    ,-}
+      infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
     , []
     , []
-    , infixExprOperator 3 E.InfixL <$> (basisOperators !! 3)
-    , infixExprOperator 4 E.InfixL <$> (basisOperators !! 4)
-    , infixExprOperator 5 E.InfixR <$> (basisOperators !! 5)
-    , infixExprOperator 6 E.InfixL <$> (basisOperators !! 6)
-    , infixExprOperator 7 E.InfixL <$> (basisOperators !! 7)
+    , infixExprOperator 3 Associativity.Left <$> (basisOperators !! 3)
+    , infixExprOperator 4 Associativity.Left <$> (basisOperators !! 4)
+    , infixExprOperator 5 Associativity.Right <$> (basisOperators !! 5)
+    , infixExprOperator 6 Associativity.Left <$> (basisOperators !! 6)
+    , infixExprOperator 7 Associativity.Left <$> (basisOperators !! 7)
     , []
     , []
       -- Application
@@ -223,7 +223,7 @@ basisFixityTable = FixityTable
     ]
 
 infixExprOperator :: Precedence -> Associativity -> Text -> TableEntry
-infixExprOperator precedence operator name =
+infixExprOperator precedence associativity name =
   ( ValueIdent.ValueIdent name
   , operator (pat <$ separator)
   , operator (expr <$ separator)
@@ -234,11 +234,18 @@ infixExprOperator precedence operator name =
   expr lhs rhs = Expr.InfixApp { Expr.lhs
                                , Expr.op         = ValueIdent.ValueIdent name
                                , Expr.precedence
+                               , Expr.associativity
                                , Expr.rhs
                                }
 
   pat lhs rhs = Pat.InfixConstructed { Pat.lhs
                                      , Pat.op = ValueIdent.ValueIdent name
                                      , Pat.precedence
+                                     , Pat.associativity
                                      , Pat.rhs
                                      }
+
+  operator :: forall a . Parser (a -> a -> a) -> E.Operator Parser a
+  operator = case associativity of
+    Associativity.Left  -> E.InfixL
+    Associativity.Right -> E.InfixR

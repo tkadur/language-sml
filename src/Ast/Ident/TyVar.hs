@@ -12,4 +12,4 @@ data TyVar
     { ident :: Ident
     , leadingPrimes :: Positive
     }
-  deriving (Show)
+  deriving (Eq, Show)

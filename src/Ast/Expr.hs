@@ -1,5 +1,6 @@
 module Ast.Expr where
 
+import           Ast.Associativity              ( Associativity )
 import           Ast.Ident.Label                ( Label )
 import           Ast.Ident.Long                 ( Long )
 import           Ast.Ident.Op                   ( Op )
@@ -16,7 +17,7 @@ data Expr
   | RecordSelector Label
   | Tuple [Expr]
   | List [Expr]
-  | Sequence [Expr]
+  | Sequence (NonEmpty Expr)
   | Let
     { decl :: Decl
     , exprs :: NonEmpty Expr
@@ -31,6 +32,7 @@ data Expr
     { lhs :: Expr
     , op :: ValueIdent
     , precedence :: Int
+    , associativity :: Associativity
     , rhs :: Expr
     }
   | Annot
@@ -53,7 +55,7 @@ data Expr
   | If
     { cond :: Expr
     , ifExpr :: Expr
-    , thenExpr :: Expr
+    , elseExpr :: Expr
     }
   | While
     { cond :: Expr
@@ -66,7 +68,7 @@ data Expr
   | Fn
     { match :: Match
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 type Match = NonEmpty MatchArm
 
@@ -75,11 +77,11 @@ data MatchArm
     { lhs :: Pat
     , rhs :: Expr
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Row
   = Row
     { label :: Label
     , expr :: Expr
     }
-  deriving (Show)
+  deriving (Eq, Show)

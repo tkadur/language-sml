@@ -6,4 +6,4 @@ import           Ast.Ident.Common               ( Alphanumeric )
 
 -- | A structure name
 newtype StructureIdent = StructureIdent Alphanumeric
-  deriving (Show)
+  deriving (Eq, Show)

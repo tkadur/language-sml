@@ -12,4 +12,4 @@ data Lit
     | Real Scientific
     | Char [Character]
     | String [Character]
-    deriving (Show)
+    deriving (Eq, Show)

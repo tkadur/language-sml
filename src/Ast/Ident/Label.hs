@@ -9,4 +9,4 @@ import           Common.Positive                ( Positive )
 data Label
   = Ident Ident
   | Numeric Positive
-  deriving (Show)
+  deriving (Eq, Show)

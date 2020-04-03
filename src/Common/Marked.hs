@@ -10,4 +10,10 @@ data Marked a = Marked
   , startPosition :: Position
   , endPosition :: Position
   }
-  deriving (Eq, Functor, Ord, Show)
+  deriving (Functor, Show)
+
+instance (Eq a) => Eq (Marked a) where
+  (==) = (==) `on` value
+
+instance (Ord a) => Ord (Marked a) where
+  compare = compare `on` value

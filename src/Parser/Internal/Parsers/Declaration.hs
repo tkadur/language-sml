@@ -9,6 +9,7 @@ import qualified Control.Monad.Combinators.Expr
                                                as E
 import qualified Text.Megaparsec               as M
 
+import qualified Ast.Associativity             as Associativity
 import           Ast.Decl                       ( Decl )
 import qualified Ast.Decl                      as Decl
 import           Ast.Ident.ValueIdent           ( ValueIdent )
@@ -114,13 +115,17 @@ nonfix = dbgState ["declaration", "nonfix"] $ do
 infixrDecl :: StateT FixityTable Parser Decl
 infixrDecl = dbgState ["declaration", "infixrDecl"] $ do
   (precedence, idents) <- lift $ fixityDecl Token.Infixr
-  modify $ FixityTable.addOperators idents E.InfixR (fromMaybe 0 precedence)
+  modify $ FixityTable.addOperators idents
+                                    Associativity.Right
+                                    (fromMaybe 0 precedence)
   return Decl.Infixr { Decl.precedence, Decl.idents }
 
 infixDecl :: StateT FixityTable Parser Decl
 infixDecl = dbgState ["declaration", "infixDecl"] $ do
   (precedence, idents) <- lift $ fixityDecl Token.Infix
-  modify $ FixityTable.addOperators idents E.InfixL (fromMaybe 0 precedence)
+  modify $ FixityTable.addOperators idents
+                                    Associativity.Left
+                                    (fromMaybe 0 precedence)
   return Decl.Infix { Decl.precedence, Decl.idents }
 
 fixityDecl :: Token

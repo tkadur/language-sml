@@ -57,7 +57,7 @@ data Decl
   | Nonfix
     { idents :: NonEmpty ValueIdent
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 type ValBinds = NonEmpty ValBind
 
@@ -75,13 +75,13 @@ data ValBind
     , lhs :: Pat
     , rhs :: Expr
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data FunBind
   = FunBind
     { clauses :: NonEmpty FunClause
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data TypBind
   = TypBind
@@ -89,7 +89,7 @@ data TypBind
     , tycon :: TyCon
     , typ :: Typ
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data DatBind
   = DatBind
@@ -97,14 +97,14 @@ data DatBind
     , tycon :: TyCon
     , conbinds :: NonEmpty ConBind
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data ConBind
   = ConBind
     { constructor :: Op ValueIdent
     , arg :: Maybe Typ
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data ExnBind
   = ExnBind
@@ -115,7 +115,7 @@ data ExnBind
     { new :: Op ValueIdent
     , old :: Op (Long ValueIdent )
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- | Function declaration clause
 data FunClause
@@ -133,4 +133,4 @@ data FunClause
     , returnType :: Maybe Typ
     , body :: Expr
     }
-  deriving (Show)
+  deriving (Eq, Show)

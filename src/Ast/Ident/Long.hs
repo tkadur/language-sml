@@ -11,4 +11,4 @@ data Long ident
     { qualifiers :: [StructureIdent]
     , ident :: ident
     }
-  deriving (Show)
+  deriving (Eq, Show)

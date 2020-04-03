@@ -1,5 +1,6 @@
 module Ast.Pat where
 
+import           Ast.Associativity              ( Associativity )
 import           Ast.Ident.Label                ( Label )
 import           Ast.Ident.Long                 ( Long )
 import           Ast.Ident.Op                   ( Op )
@@ -22,6 +23,7 @@ data Pat
     { lhs :: Pat
     , op :: ValueIdent
     , precedence :: Int
+    , associativity :: Associativity
     , rhs :: Pat
     }
   | Annot
@@ -33,7 +35,7 @@ data Pat
     , annot :: Maybe Typ
     , as :: Pat
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Row
   = RowWild
@@ -46,4 +48,4 @@ data Row
     , annot :: Maybe Typ
     , as :: Maybe Pat
     }
-  deriving (Show)
+  deriving (Eq, Show)

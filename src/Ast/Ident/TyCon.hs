@@ -6,4 +6,4 @@ import           Ast.Ident.Common               ( Ident )
 
 -- | A type constructor name
 newtype TyCon = TyCon Ident
-  deriving (Show)
+  deriving (Eq, Show)

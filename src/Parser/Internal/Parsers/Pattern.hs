@@ -20,20 +20,26 @@ import           Parser.Internal.Parsers.Identifier
                                                 )
 import           Parser.Internal.Parsers.Literal
                                                 ( literal )
-import           Parser.Internal.Parsers.Type   ( typ
-                                                , maybeAnnot
-                                                )
+import           Parser.Internal.Parsers.Type   ( typ )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a pattern
 pattern :: FixityTable -> Parser Pat
-pattern fixityTable = dbg ["pattern"] $ maybeAnnot pattern' Pat.Annot
+pattern fixityTable = dbg ["pattern"] $ do
+  -- Handle left-recursive type annotations
+  pat         <- infixed
+  maybeAnnots <- optional $ some (token_ Token.Colon >> typ)
+  return $ case maybeAnnots of
+    Nothing -> pat
+    Just (annot :| annots) ->
+      foldl' Pat.Annot (Pat.Annot { Pat.pat, Pat.typ = annot }) annots
  where
+
   -- Handle infix operators
-  pattern'    = FixityTable.makeParser FixityTable.Pat pattern'' fixityTable
+  infixed     = FixityTable.makeParser FixityTable.Pat pattern' fixityTable
 
   -- Non-left recursive cases
-  pattern''   = choice [constructed, asPat, atomicPattern fixityTable]
+  pattern'    = choice [constructed, asPat, atomicPattern fixityTable]
 
   -- Constructor application
   -- @try@ to prevent failure from trying to parse variable as constructor

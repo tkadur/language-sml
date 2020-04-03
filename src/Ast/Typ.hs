@@ -18,11 +18,11 @@ data Typ
     { lhs :: Typ
     , rhs :: Typ
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Row
   = Row
     { label :: Label
     , typ :: Typ
     }
-  deriving (Show)
+  deriving (Eq, Show)
