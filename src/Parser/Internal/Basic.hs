@@ -73,7 +73,7 @@ dbgReader :: (Show a)
 dbgReader = Reader.mapReaderT . dbg
 
 -- | Consumes no input and succeeds
-nothing :: Parser ()
+nothing :: (M.MonadParsec Error Stream p) => p ()
 nothing = return ()
 
 -- | Consumes no input and fails
@@ -83,7 +83,7 @@ never = empty
 eof :: Parser ()
 eof = token_ Token.Eof >> M.eof
 
-token_ :: Token -> Parser ()
+token_ :: (M.MonadParsec Error Stream p) => Token -> p ()
 token_ tok = M.satisfy (\(_, mtok) -> Marked.value mtok == tok) >> nothing
 
 tokenWith :: (Token -> Maybe a) -> Parser a

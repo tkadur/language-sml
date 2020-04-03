@@ -45,7 +45,7 @@ import qualified Parser.Internal.Token         as Token
 declaration :: StateT FixityTable Parser Decl
 declaration = dbgState ["declaration"] $ do
     -- Handle declaration sequences
-  decls <- declaration' `sepBy` lift (token_ Token.Semicolon <|> nothing)
+  decls <- declaration' `sepBy` (token_ Token.Semicolon <|> nothing)
   return $ case decls of
     [decl] -> decl
     _      -> Decl.Sequence decls
@@ -68,7 +68,7 @@ declaration = dbgState ["declaration"] $ do
 
 val :: StateT FixityTable Parser Decl
 val = dbgState ["declaration", "val"] $ do
-  lift $ token_ Token.Val
+  token_ Token.Val
   tyvars   <- lift $ xseq typeVariable
   valbinds <- binds Token.And valBind
   return Decl.Val { Decl.tyvars, Decl.valbinds }
@@ -95,7 +95,7 @@ valBind start = dbgState ["delaration", "val", "valbind"] $ do
 
 typAlias :: StateT FixityTable Parser Decl
 typAlias = dbgState ["declaration", "typAlias"] $ do
-  lift $ token_ Token.Type
+  token_ Token.Type
   typbinds <- binds Token.And typBind
   return Decl.TypAlias { Decl.typbinds }
 
@@ -127,10 +127,10 @@ datatypeReplication =
 
 datatype :: StateT FixityTable Parser Decl
 datatype = dbgState ["declaration", "datatype"] $ do
-  lift $ token_ Token.Datatype
+  token_ Token.Datatype
   datbinds <- binds Token.And datBind
   withtype <- optional $ do
-    lift $ token_ Token.Withtype
+    token_ Token.Withtype
     binds Token.And typBind
   return Decl.Datatype { Decl.datbinds, Decl.withtype }
 
@@ -139,7 +139,7 @@ datBind start = dbgState ["declaration", "datatype", "datBind"] $ do
   lift start
   tyvars <- lift $ xseq typeVariable
   tycon  <- lift typeConstructor
-  lift $ token_ Token.Equal
+  token_ Token.Equal
   conbinds <- binds Token.Pipe conBind
   return Decl.DatBind { Decl.tyvars, Decl.tycon, Decl.conbinds }
 
@@ -154,19 +154,20 @@ conBind start =
 -- Abstype declarations
 abstype :: StateT FixityTable Parser Decl
 abstype = dbgState ["declaration", "abstype"] $ do
-  lift $ token_ Token.Abstype
+  token_ Token.Abstype
   datbinds <- binds Token.And datBind
   withtype <- optional $ do
-    lift $ token_ Token.Withtype
+    token_ Token.Withtype
     binds Token.And typBind
-  lift $ token_ Token.With
+  token_ Token.With
   decl <- declaration
+  token_ Token.End
   return Decl.Abstype { Decl.datbinds, Decl.withtype, Decl.decl }
 
 -- Exception declarations
 exception :: StateT FixityTable Parser Decl
 exception = dbgState ["declaration", "exception"] $ do
-  lift $ token_ Token.Exception
+  token_ Token.Exception
   exnbinds <- binds Token.And exnBind
   return Decl.Exception { Decl.exnbinds }
 
@@ -203,11 +204,11 @@ localInEnd = dbgState ["declaration", "localInEnd"] $ do
   -- Store old fixity table
   fixityTable <- get
 
-  lift $ token_ Token.Local
+  token_ Token.Local
   decl <- declaration
-  lift $ token_ Token.In
+  token_ Token.In
   body <- declaration
-  lift $ token_ Token.End
+  token_ Token.End
 
   -- Reset fixity table, then scan body for fixity decls and update it
   -- TODO(tkadur) This is a terrible hack - find a better way
