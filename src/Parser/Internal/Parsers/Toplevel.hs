@@ -9,6 +9,6 @@ import           Parser.Internal.Parsers.Declaration
                                                 ( declaration )
 
 -- | Parses the toplevel
-toplevel :: Parser [Decl]
-toplevel = dbg ["toplevel"] $ evalStateT decls FixityTable.basisFixityTable
-  where decls = many declaration
+toplevel :: Parser Decl
+toplevel =
+  dbg ["toplevel"] $ evalStateT declaration FixityTable.basisFixityTable

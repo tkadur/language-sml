@@ -3,8 +3,6 @@ module Parser.Internal.Parsers.Expression where
 import           Control.Monad.Combinators      ( choice
                                                 , sepBy
                                                 )
-import qualified Control.Monad.Combinators.Expr
-                                               as E
 import           Control.Monad.Combinators.NonEmpty
                                                 ( sepBy1 )
 import           Text.Megaparsec                ( try )
@@ -129,6 +127,7 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
     decl <- evalStateT declaration fixityTable
     token_ Token.In
     exprs <- expression fixityTable `sepBy1` token_ Token.Semicolon
+    token_ Token.End
     return Expr.Let { Expr.decl, Expr.exprs }
 
   parens = parenthesized (expression fixityTable)

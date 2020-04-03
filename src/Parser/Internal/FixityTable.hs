@@ -105,8 +105,7 @@ addOperator ident@(ValueIdent.ValueIdent name) associativity precedence FixityTa
     table
       |> removeOperatorFromTable ident
       -- Add ident to the operator table
-      |> update (precedence + precedenceOffset)
-                (infixExprOperator precedence associativity name :)
+      |> update precedence (infixExprOperator precedence associativity name :)
 
   operators' = HashSet.insert ident operators
 
@@ -126,35 +125,10 @@ removeOperatorFromTable :: ValueIdent -> Table -> Table
 removeOperatorFromTable ident =
   map $ filter (\(ident', _, _) -> ident' /= ident)
 
--- | Accounts for magical low precedence things in the fixity table like andalso/orelse
-precedenceOffset :: Int
-precedenceOffset = 0
-
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
   { table     =
-    [ {- -- Orelse
-      [ let separator = token_ Token.Orelse
-            pat       = error "patterns cannot contain orelse"
-            expr lhs rhs = Expr.Orelse { Expr.lhs, Expr.rhs }
-        in  ( ValueIdent.ValueIdent "orelse"
-              -- orelse cannot appear in patterns
-            , E.InfixL (pat <$ never)
-            , E.InfixL (expr <$ separator)
-            )
-      ]
-      -- Andalso
-    , [ let separator = token_ Token.Andalso
-            pat       = error "patterns cannot contain andalso"
-            expr lhs rhs = Expr.Andalso { Expr.lhs, Expr.rhs }
-        in  ( ValueIdent.ValueIdent "andalso"
-              -- andalso cannot appear in patterns
-            , E.InfixL (pat <$ never)
-            , E.InfixL (expr <$ separator)
-            )
-      ]
-    ,-}
-      infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
+    [ infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
     , []
     , []
     , infixExprOperator 3 Associativity.Left <$> (basisOperators !! 3)
