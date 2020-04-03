@@ -12,13 +12,11 @@ import           Control.Applicative.Combinators.NonEmpty
                                                 )
 import qualified Control.Monad.Combinators.Expr
                                                as E
-import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
 import           Ast.Typ                        ( Typ )
 import qualified Ast.Typ                       as Typ
 import           Parser.Internal.Basic
-import           Parser.Internal.Combinators    ( sepBy2 )
 import           Parser.Internal.Parsers.Identifier
                                                 ( typeVariable
                                                 , typeConstructor
@@ -28,21 +26,9 @@ import           Parser.Internal.Parsers.Identifier
 import qualified Parser.Internal.Token         as Token
 
 typ :: Parser Typ
-typ = dbg ["typ"] maybeSingleArgApp
+typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
  where
-  -- Handle case of left recursive application
-  maybeSingleArgApp = do
-    arg         <- typ'
-    maybeTycons <- optional $ some (long typeConstructor)
-    return $ case maybeTycons of
-      Nothing -> arg
-      Just (tycon :| tycons) -> foldl'
-        (\t con -> Typ.App { Typ.tycon = con, args = t :| [] })
-        (Typ.App { Typ.tycon, Typ.args = arg :| [] })
-        tycons
-
-  typ'          = E.makeExprParser typ'' operatorTable
-  typ''         = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
+  typ'          = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
 
   operatorTable = reverse
     [
@@ -53,7 +39,12 @@ typ = dbg ["typ"] maybeSingleArgApp
             separator = tokenWith $ \case
               Token.Symbolic "*" -> Just ()
               _ -> Nothing
-        in  (E.InfixL (tup <$ separator))
+        in  E.InfixL (tup <$ separator)
+      ]
+    , -- Type constructor application
+      [ let app arg tycon = Typ.App { Typ.args = arg :| [], Typ.tycon }
+            separator = nothing
+        in  E.InfixL (app <$ separator)
       ]
     ]
 
@@ -61,7 +52,7 @@ typ = dbg ["typ"] maybeSingleArgApp
 multiArgApp :: Parser Typ
 multiArgApp = dbg ["typ", "multiArgApp"] . try $ do
   args  <- parenthesized (typ `sepBy1` token_ Token.Comma)
-  tycon <- long typeConstructor
+  tycon <- Typ.TyCon <$> long typeConstructor
 
   return Typ.App { Typ.tycon, Typ.args }
 
@@ -70,7 +61,8 @@ parens :: Parser Typ
 parens = parenthesized typ
 
 unappliedTycon :: Parser Typ
-unappliedTycon = Typ.TyCon <$> long typeConstructor
+-- @try@ to prevent conflict with *
+unappliedTycon = Typ.TyCon <$> try (long typeConstructor)
 
 tyvar :: Parser Typ
 tyvar = dbg ["typ", "tyvar"] $ Typ.TyVar <$> typeVariable
