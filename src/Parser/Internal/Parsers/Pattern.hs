@@ -13,7 +13,7 @@ import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Parsers.Identifier
-                                                ( nonfixValueIdentifier
+                                                ( nonfixLongValueIdentifier
                                                 , valueIdentifier
                                                 , label
                                                 , op
@@ -44,7 +44,7 @@ pattern fixityTable = dbg ["pattern"] $ do
   -- Constructor application
   -- @try@ to prevent failure from trying to parse variable as constructor
   constructed = dbg ["pattern", "constructed"] . try $ do
-    constructor <- nonfixValueIdentifier fixityTable
+    constructor <- nonfixLongValueIdentifier fixityTable
     arg         <- atomicPattern fixityTable
     return Pat.Constructed { Pat.constructor, Pat.arg }
 
@@ -58,7 +58,7 @@ pattern fixityTable = dbg ["pattern"] $ do
 
 atomicPattern :: FixityTable -> Parser Pat
 atomicPattern fixityTable = choice
-  [wild, lit, vident, record, tup, lst, parens]
+  [wild, lit, vident, record, parens, tup, lst]
  where
 
   -- Wildcard
@@ -70,7 +70,7 @@ atomicPattern fixityTable = choice
   -- Value identifier
   vident = dbg ["pattern", "ident"]
     -- @try@ to prevent failure from trying to parse infix operator as ident
-    $ try (Pat.Ident <$> nonfixValueIdentifier fixityTable)
+    $ try (Pat.Ident <$> nonfixLongValueIdentifier fixityTable)
 
   -- Record
   record = dbg ["typ", "record"] $ Pat.Record <$> braces
@@ -96,12 +96,12 @@ atomicPattern fixityTable = choice
       as    <- optional (token_ Token.As >> pattern fixityTable)
       return Pat.RowPun { Pat.ident, Pat.annot, Pat.as }
 
+  -- Parenthesized
+  -- @try@ to prevent failure from consuming the start of a tuple
+  parens = try $ parenthesized (pattern fixityTable)
+
   -- Tuple
   tup    = Pat.Tuple <$> tuple (pattern fixityTable)
 
   -- List
   lst    = Pat.List <$> list (pattern fixityTable)
-
-  -- Parenthesized
-  -- @try@ to prevent failure from consuming the start of a tuple
-  parens = try $ parenthesized (pattern fixityTable)

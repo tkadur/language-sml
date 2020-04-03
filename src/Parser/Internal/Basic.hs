@@ -77,7 +77,7 @@ nothing :: (M.MonadParsec Error Stream p) => p ()
 nothing = return ()
 
 -- | Consumes no input and fails
-never :: Parser a
+never :: (M.MonadParsec Error Stream p) => p a
 never = empty
 
 eof :: Parser ()

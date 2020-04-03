@@ -1,6 +1,7 @@
 module Parser.Internal.Parsers.Identifier
   ( valueIdentifier
   , nonfixValueIdentifier
+  , nonfixLongValueIdentifier
   , structureIdentifier
   , typeVariable
   , typeConstructor
@@ -42,9 +43,20 @@ import           Parser.Internal.Parsers.Literal
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a value identifier which must not be infixed
-nonfixValueIdentifier :: FixityTable -> Parser (Op (Long ValueIdent))
+nonfixValueIdentifier :: FixityTable -> Parser (Op ValueIdent)
 nonfixValueIdentifier fixityTable = do
-  x <- op . long $ valueIdentifier
+  x <- op valueIdentifier
+  case x of
+    Op.Ident ident ->
+      if ident `HashSet.member` FixityTable.operators fixityTable
+        then fail $ "unexpected infix identifier " ++ show ident
+        else return x
+    _ -> return x
+
+-- | Parses a long value identifier which must not be infixed
+nonfixLongValueIdentifier :: FixityTable -> Parser (Op (Long ValueIdent))
+nonfixLongValueIdentifier fixityTable = do
+  x <- op (long valueIdentifier)
   case x of
     Op.Ident Long.Long { Long.qualifiers = [], Long.ident } ->
       if ident `HashSet.member` FixityTable.operators fixityTable

@@ -23,6 +23,8 @@ import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Parsers.Identifier
                                                 ( valueIdentifier
+                                                , nonfixValueIdentifier
+                                                , nonfixLongValueIdentifier
                                                 , typeVariable
                                                 , typeConstructor
                                                 , structureIdentifier
@@ -36,7 +38,9 @@ import           Parser.Internal.Parsers.Literal
                                                 , hexadecimal
                                                 )
 import           Parser.Internal.Parsers.Pattern
-                                                ( pattern )
+                                                ( atomicPattern
+                                                , pattern
+                                                )
 import           Parser.Internal.Parsers.Type   ( typ )
 import           Parser.Internal.Token          ( Token )
 import qualified Parser.Internal.Token         as Token
@@ -52,6 +56,7 @@ declaration = dbgState ["declaration"] $ do
  where
   declaration' = choice
     [ val
+    , fun
     , typAlias
     , datatypeReplication
     , datatype
@@ -90,6 +95,57 @@ valBind start = dbgState ["delaration", "val", "valbind"] $ do
     return Decl.ValBind { Decl.isRec, Decl.lhs, Decl.rhs }
 
 -- Fun declarations
+
+fun :: StateT FixityTable Parser Decl
+fun = dbgState ["declaration", "fun"] $ do
+  token_ Token.Fun
+  tyvars   <- lift $ xseq typeVariable
+  funbinds <- binds Token.And funBind
+  return Decl.Fun { Decl.tyvars, Decl.funbinds }
+
+funBind :: Parser () -> StateT FixityTable Parser Decl.FunBind
+funBind start = dbgState ["declaration", "fun", "funBind"] $ do
+  lift start
+  clauses <- binds Token.Pipe funClause
+  return Decl.FunBind { Decl.clauses }
+
+funClause :: Parser () -> StateT FixityTable Parser Decl.FunClause
+funClause start = dbgState ["declaration", "fun", "funBind", "funClause"] $ do
+  lift start
+  choice [nonfixClause, infixClause]
+ where
+  nonfixClause = do
+    fixityTable <- get
+    lift $ do
+      nonfixName <- nonfixValueIdentifier fixityTable
+      nonfixArgs <- some (atomicPattern fixityTable)
+      returnType <- optional (token_ Token.Colon >> typ)
+      token_ Token.Equal
+      body <- expression fixityTable
+      return Decl.NonfixClause { Decl.nonfixName
+                               , Decl.nonfixArgs
+                               , Decl.returnType
+                               , Decl.body
+                               }
+
+  -- TODO(tkadur) enforce parens as the standard requires
+  infixClause = do
+    fixityTable <- get
+    lift $ do
+      lhs        <- atomicPattern fixityTable
+      infixName  <- valueIdentifier
+      rhs        <- atomicPattern fixityTable
+      infixArgs  <- many (atomicPattern fixityTable)
+      returnType <- optional (token_ Token.Colon >> typ)
+      token_ Token.Equal
+      body <- expression fixityTable
+      return Decl.InfixClause { Decl.lhs
+                              , Decl.infixName
+                              , Decl.rhs
+                              , Decl.infixArgs
+                              , Decl.returnType
+                              , Decl.body
+                              }
 
 -- Type aliases
 
@@ -172,20 +228,24 @@ exception = dbgState ["declaration", "exception"] $ do
   return Decl.Exception { Decl.exnbinds }
 
 exnBind :: Parser () -> StateT FixityTable Parser Decl.ExnBind
-exnBind start = dbgState ["declaration", "exception", "exnBind"] . lift $ do
-  start
+exnBind start = dbgState ["declaration", "exception", "exnBind"] $ do
+  lift start
   choice [replication, regular]
  where
   replication = do
-    -- @try@ to prevent conflict with regular exnbinds
-    new <- try (op valueIdentifier << token_ Token.Equal)
-    old <- op (long valueIdentifier)
-    return Decl.ExnReplication { Decl.new, Decl.old }
+    fixityTable <- get
+    lift $ do
+      -- @try@ to prevent conflict with regular exnbinds
+      new <- try (nonfixValueIdentifier fixityTable << token_ Token.Equal)
+      old <- nonfixLongValueIdentifier fixityTable
+      return Decl.ExnReplication { Decl.new, Decl.old }
 
   regular = do
-    constructor <- op valueIdentifier
-    arg         <- optional (token_ Token.Of >> typ)
-    return Decl.ExnBind { Decl.constructor, Decl.arg }
+    fixityTable <- get
+    lift $ do
+      constructor <- nonfixValueIdentifier fixityTable
+      arg         <- optional (token_ Token.Of >> typ)
+      return Decl.ExnBind { Decl.constructor, Decl.arg }
 
 -- Common functionality for chained bindings
 

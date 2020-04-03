@@ -15,7 +15,7 @@ import qualified Parser.Internal.FixityTable   as FixityTable
 import {-# SOURCE #-} Parser.Internal.Parsers.Declaration
 
 import           Parser.Internal.Parsers.Identifier
-                                                ( nonfixValueIdentifier
+                                                ( nonfixLongValueIdentifier
                                                 , label
                                                 )
 import           Parser.Internal.Parsers.Literal
@@ -97,7 +97,7 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
   lit    = Expr.Lit <$> literal
 
   -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
-  vident = try $ Expr.Ident <$> nonfixValueIdentifier fixityTable
+  vident = try $ Expr.Ident <$> nonfixLongValueIdentifier fixityTable
 
   record = Expr.Record <$> braces (row `sepBy` token_ Token.Comma)
    where
