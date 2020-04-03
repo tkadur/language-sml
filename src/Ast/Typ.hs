@@ -13,11 +13,9 @@ data Typ
     { tycons :: NonEmpty (Long TyCon)
     , args :: NonEmpty Typ
     }
+  -- For convenience, we directly express product/arrow type chains instead of nesting them
   | Tuple (NonEmpty Typ)
-  | Arrow
-    { lhs :: Typ
-    , rhs :: Typ
-    }
+  | Arrow (NonEmpty Typ)
   deriving (Eq, Show)
 
 data Row

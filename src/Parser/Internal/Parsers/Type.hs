@@ -13,6 +13,7 @@ import           Control.Applicative.Combinators.NonEmpty
                                                 )
 import qualified Control.Monad.Combinators.Expr
                                                as E
+import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
 import           Ast.Typ                        ( Typ )
@@ -29,6 +30,7 @@ import qualified Parser.Internal.Token         as Token
 typ :: Parser Typ
 typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
  where
+  -- Handle left-recursive tycon application
   typ' = do
     arg         <- typ''
     -- @try@ to prevent trying to parse * as tycon
@@ -38,18 +40,27 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
       tycon : tycons ->
         Typ.App { Typ.args = arg :| [], Typ.tycons = tycon :| tycons }
 
+  -- Non-left recursive cases
   typ''         = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
 
   operatorTable = reverse
     [
       -- Arrow type
-      [E.InfixR (Typ.Arrow <$ token_ Token.Narrowarrow)]
+      -- [E.InfixR (Typ.Arrow <$ token_ Token.Narrowarrow)]
+      [ let arrow t1 t2 = case t2 of
+              Typ.Arrow ts -> Typ.Arrow (t1 `NonEmpty.cons` ts)
+              _ -> Typ.Arrow (t1 :| [t2])
+            separator = token_ Token.Narrowarrow
+        in  E.InfixR (arrow <$ separator)
+      ]
       -- Product type
-    , [ let tup t1 t2 = Typ.Tuple (t1 :| [t2])
+    , [ let tup t1 t2 = case t2 of
+              Typ.Tuple ts -> Typ.Tuple (t1 `NonEmpty.cons` ts)
+              _ -> Typ.Tuple (t1 :| [t2])
             separator = tokenWith $ \case
               Token.Symbolic "*" -> Just ()
               _ -> Nothing
-        in  E.InfixL (tup <$ separator)
+        in  E.InfixR (tup <$ separator)
       ]
     ]
 

@@ -127,30 +127,29 @@ removeOperatorFromTable ident =
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
-  { table     =
-    [ infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
-    , []
-    , []
-    , infixExprOperator 3 Associativity.Left <$> (basisOperators !! 3)
-    , infixExprOperator 4 Associativity.Left <$> (basisOperators !! 4)
-    , infixExprOperator 5 Associativity.Right <$> (basisOperators !! 5)
-    , infixExprOperator 6 Associativity.Left <$> (basisOperators !! 6)
-    , infixExprOperator 7 Associativity.Left <$> (basisOperators !! 7)
-    , []
-    , []
-      -- Application
-    , [ let
-          separator = nothing
-          pat       = error "patterns cannot contain application"
-          expr function arg = Expr.App { Expr.function, Expr.args = arg :| [] }
-        in
-          ( ValueIdent.ValueIdent ""
-          -- application cannot appear in patterns
-          , E.InfixL (pat <$ never)
-          , E.InfixL (expr <$ separator)
-          )
-      ]
-    ]
+  { table = [ infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
+            , []
+            , []
+            , infixExprOperator 3 Associativity.Left <$> (basisOperators !! 3)
+            , infixExprOperator 4 Associativity.Left <$> (basisOperators !! 4)
+            , infixExprOperator 5 Associativity.Right <$> (basisOperators !! 5)
+            , infixExprOperator 6 Associativity.Left <$> (basisOperators !! 6)
+            , infixExprOperator 7 Associativity.Left <$> (basisOperators !! 7)
+            , []
+            , []
+              -- Application
+            , [ let separator = nothing
+                    expr function arg = case function of
+                      Expr.App { Expr.args } ->
+                        function { Expr.args = args <> (arg :| []) }
+                      _ -> Expr.App { Expr.function, Expr.args = arg :| [] }
+                in  ( ValueIdent.ValueIdent ""
+                    -- application cannot appear in patterns
+                    , E.InfixL never
+                    , E.InfixL (expr <$ separator)
+                    )
+              ]
+            ]
   , operators = HashSet.fromList
                   $ map ValueIdent.ValueIdent (concat basisOperators)
   }
