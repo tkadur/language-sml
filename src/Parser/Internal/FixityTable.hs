@@ -139,6 +139,7 @@ basisFixityTable = FixityTable
             , []
               -- Application
             , [ let separator = nothing
+                    -- Flatten application chains when possible
                     expr function arg = case function of
                       Expr.App { Expr.args } ->
                         function { Expr.args = args <> (arg :| []) }

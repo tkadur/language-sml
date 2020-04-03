@@ -46,7 +46,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
   operatorTable = reverse
     [
       -- Arrow type
-      -- [E.InfixR (Typ.Arrow <$ token_ Token.Narrowarrow)]
+      -- Flatten chains when possible
       [ let arrow t1 t2 = case t2 of
               Typ.Arrow ts -> Typ.Arrow (t1 `NonEmpty.cons` ts)
               _ -> Typ.Arrow (t1 :| [t2])
@@ -54,6 +54,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
         in  E.InfixR (arrow <$ separator)
       ]
       -- Product type
+      -- Flatten chains when possible
     , [ let tup t1 t2 = case t2 of
               Typ.Tuple ts -> Typ.Tuple (t1 `NonEmpty.cons` ts)
               _ -> Typ.Tuple (t1 :| [t2])
