@@ -35,7 +35,7 @@ import qualified Ast.Ident.StructureIdent      as StructureIdent
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import qualified Ast.Ident.ValueIdent          as ValueIdent
 import qualified Common.Positive               as Positive
-import           Parser.Internal.Basic
+import           Parser.Internal.Basic   hiding ( Parser )
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Parsers.Literal
@@ -43,7 +43,9 @@ import           Parser.Internal.Parsers.Literal
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a value identifier which must not be infixed
-nonfixValueIdentifier :: FixityTable -> Parser (Op ValueIdent)
+nonfixValueIdentifier :: (MonadParser parser)
+                      => FixityTable
+                      -> parser (Op ValueIdent)
 nonfixValueIdentifier fixityTable = do
   x <- op valueIdentifier
   case x of
@@ -54,7 +56,9 @@ nonfixValueIdentifier fixityTable = do
     _ -> return x
 
 -- | Parses a long value identifier which must not be infixed
-nonfixLongValueIdentifier :: FixityTable -> Parser (Op (Long ValueIdent))
+nonfixLongValueIdentifier :: (MonadParser parser)
+                          => FixityTable
+                          -> parser (Op (Long ValueIdent))
 nonfixLongValueIdentifier fixityTable = do
   x <- op (long valueIdentifier)
   case x of
@@ -65,14 +69,14 @@ nonfixLongValueIdentifier fixityTable = do
     _ -> return x
 
 -- | Parses a value identifier
-valueIdentifier :: Parser ValueIdent
+valueIdentifier :: (MonadParser parser) => parser ValueIdent
 valueIdentifier = ValueIdent.ValueIdent <$> identifier
 
 -- | Parses a structure identifier
-structureIdentifier :: Parser StructureIdent
+structureIdentifier :: (MonadParser parser) => parser StructureIdent
 structureIdentifier = StructureIdent.StructureIdent <$> alphanumeric
 
-typeVariable :: Parser TyVar
+typeVariable :: (MonadParser parser) => parser TyVar
 typeVariable = do
   ticks <- some (token_ Token.Tick)
   let leadingPrimes = Positive.positive (NonEmpty.length ticks)
@@ -81,14 +85,14 @@ typeVariable = do
 
   return TyVar.TyVar { TyVar.ident, TyVar.leadingPrimes }
 
-typeConstructor :: Parser TyCon
+typeConstructor :: (MonadParser parser) => parser TyCon
 typeConstructor = do
   ident <- identifier
   case ident of
     "*" -> fail "* is not a valid type constructor"
     _   -> return (TyCon.TyCon ident)
 
-label :: Parser Label
+label :: (MonadParser parser) => parser Label
 label = ident <|> numeric
  where
   ident   = Label.Ident <$> identifier
@@ -100,7 +104,7 @@ label = ident <|> numeric
       else return $ Label.Numeric (Positive.positive number)
 
 -- | Parses an identifier possible prefixed by op
-op :: Parser ident -> Parser (Op ident)
+op :: (MonadParser parser) => parser ident -> parser (Op ident)
 op ident = choice [with, without]
  where
   with = do
@@ -110,27 +114,27 @@ op ident = choice [with, without]
   without = Op.Ident <$> ident
 
 -- | Parses a possibly qualified identifier
-long :: forall ident . (Show ident) => Parser ident -> Parser (Long ident)
+long :: (MonadParser parser, Show ident) => parser ident -> parser (Long ident)
 long p = dbg ["longIdentifier"] $ do
   qualifiers <- quals
   ident      <- p
   return Long.Long { Long.qualifiers, Long.ident = ident }
  where
-  qual :: Parser StructureIdent
+  qual :: (MonadParser parser) => parser StructureIdent
   qual = do
     qualifier <- structureIdentifier
     token_ Token.Dot
     return qualifier
 
-  quals :: Parser [StructureIdent]
+  quals :: (MonadParser parser) => parser [StructureIdent]
   -- @try@ so we don't fail once we reach the end of the qualifiers
   quals = many (try qual)
 
-identifier :: Parser Text
+identifier :: (MonadParser parser) => parser Text
 identifier = alphanumeric <|> symbolic
 
 -- | Alphanumeric identifiers
-alphanumeric :: Parser Text
+alphanumeric :: (MonadParser parser) => parser Text
 alphanumeric = dbg ["alphanumeric"] $ tokenWith
   (\case
     Token.Alphanumeric s -> Just s
@@ -138,7 +142,7 @@ alphanumeric = dbg ["alphanumeric"] $ tokenWith
   )
 
 -- | Symbolic identifiers
-symbolic :: Parser Text
+symbolic :: (MonadParser parser) => parser Text
 symbolic = dbg ["symbolic"] $ tokenWith
   (\case
     Token.Symbolic s -> Just s

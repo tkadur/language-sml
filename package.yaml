@@ -63,6 +63,7 @@ default-extensions:
     # Random stuff
   - ApplicativeDo
   - BangPatterns
+  - ConstraintKinds
   - MultiWayIf
   - NoMonomorphismRestriction
   - TypeApplications

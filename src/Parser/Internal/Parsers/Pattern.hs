@@ -9,7 +9,7 @@ import           Text.Megaparsec                ( try )
 
 import           Ast.Pat                        ( Pat )
 import qualified Ast.Pat                       as Pat
-import           Parser.Internal.Basic
+import           Parser.Internal.Basic   hiding ( Parser )
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import           Parser.Internal.Parsers.Identifier
@@ -24,7 +24,7 @@ import           Parser.Internal.Parsers.Type   ( typ )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a pattern
-pattern :: FixityTable -> Parser Pat
+pattern :: (MonadParser parser) => FixityTable -> parser Pat
 pattern fixityTable = dbg ["pattern"] $ do
   -- Handle left-recursive type annotations
   pat         <- infixed
@@ -56,7 +56,10 @@ pattern fixityTable = dbg ["pattern"] $ do
     as <- pattern fixityTable
     return Pat.As { Pat.ident, Pat.annot, Pat.as }
 
-atomicPattern :: FixityTable -> Parser Pat
+atomicPattern :: forall parser
+               . (MonadParser parser)
+              => FixityTable
+              -> parser Pat
 atomicPattern fixityTable = choice
   [wild, lit, vident, record, parens, tup, lst]
  where
@@ -76,7 +79,7 @@ atomicPattern fixityTable = choice
   record = dbg ["typ", "record"] $ Pat.Record <$> braces
     (row `sepBy` token_ Token.Comma)
    where
-    row :: Parser Pat.Row
+    row :: (MonadParser parser) => parser Pat.Row
     row     = choice [rowWild, regularRow, rowPun]
 
     rowWild = do

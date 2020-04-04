@@ -10,7 +10,7 @@ import           Parser.Internal.Basic
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a numerical literal
-literal :: Parser Lit
+literal :: (MonadParser parser) => parser Lit
 literal = dbg ["literal"] $ choice
   [ Lit.Int <$> decimal
   , Lit.Hex <$> hexadecimal
@@ -21,14 +21,14 @@ literal = dbg ["literal"] $ choice
   , Lit.String <$> string
   ]
 
-string :: Parser [Character]
+string :: (MonadParser parser) => parser [Character]
 string = dbg ["string"] $ tokenWith
   (\case
     Token.String cs -> Just cs
     _ -> Nothing
   )
 
-char :: Parser [Character]
+char :: (MonadParser parser) => parser [Character]
 char = dbg ["char"] $ tokenWith
   (\case
     Token.Character cs -> Just cs
@@ -36,7 +36,7 @@ char = dbg ["char"] $ tokenWith
   )
 
 -- | Parses a decimal integer literal
-decimal :: Parser Integer
+decimal :: (MonadParser parser) => parser Integer
 decimal = dbg ["decimal"] $ tokenWith
   (\case
     Token.Int i -> Just i
@@ -44,7 +44,7 @@ decimal = dbg ["decimal"] $ tokenWith
   )
 
 -- | Parses a hexadecimal integer literal
-hexadecimal :: Parser Integer
+hexadecimal :: (MonadParser parser) => parser Integer
 hexadecimal = dbg ["hexadecimal"] $ tokenWith
   (\case
     Token.Hex i -> Just i
@@ -52,7 +52,7 @@ hexadecimal = dbg ["hexadecimal"] $ tokenWith
   )
 
 -- | Parses a word literal
-word :: Parser Integer
+word :: (MonadParser parser) => parser Integer
 word = dbg ["word"] $ tokenWith
   (\case
     Token.Word i -> Just i
@@ -60,7 +60,7 @@ word = dbg ["word"] $ tokenWith
   )
 
 -- | Parses a hexadecimal word literal
-hexword :: Parser Integer
+hexword :: (MonadParser parser) => parser Integer
 hexword = dbg ["hexword"] $ tokenWith
   (\case
     Token.HexWord i -> Just i
@@ -68,7 +68,7 @@ hexword = dbg ["hexword"] $ tokenWith
   )
 
 -- | Parses a real number
-real :: Parser Scientific
+real :: (MonadParser parser) => parser Scientific
 real = dbg ["real"] $ tokenWith
   (\case
     Token.Real n -> Just n

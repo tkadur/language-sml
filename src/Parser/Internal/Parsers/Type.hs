@@ -18,7 +18,7 @@ import           Text.Megaparsec                ( try )
 
 import           Ast.Typ                        ( Typ )
 import qualified Ast.Typ                       as Typ
-import           Parser.Internal.Basic
+import           Parser.Internal.Basic   hiding ( Parser )
 import           Parser.Internal.Parsers.Identifier
                                                 ( typeVariable
                                                 , typeConstructor
@@ -27,7 +27,7 @@ import           Parser.Internal.Parsers.Identifier
                                                 )
 import qualified Parser.Internal.Token         as Token
 
-typ :: Parser Typ
+typ :: (MonadParser parser) => parser Typ
 typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
  where
   -- Handle left-recursive tycon application
@@ -66,7 +66,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
     ]
 
 -- Application where left recursion isn't an issue
-multiArgApp :: Parser Typ
+multiArgApp :: (MonadParser parser) => parser Typ
 multiArgApp = dbg ["typ", "multiArgApp"] . try $ do
   args   <- parenthesized (typ `sepBy1` token_ Token.Comma)
   -- @try@ to prevent trying to parse * as tycon
@@ -75,21 +75,21 @@ multiArgApp = dbg ["typ", "multiArgApp"] . try $ do
   return Typ.App { Typ.tycons, Typ.args }
 
 -- Parenthesized
-parens :: Parser Typ
+parens :: (MonadParser parser) => parser Typ
 parens = parenthesized typ
 
-unappliedTycon :: Parser Typ
+unappliedTycon :: (MonadParser parser) => parser Typ
 -- @try@ to prevent conflict with *
 unappliedTycon = Typ.TyCon <$> try (long typeConstructor)
 
-tyvar :: Parser Typ
+tyvar :: (MonadParser parser) => parser Typ
 tyvar = dbg ["typ", "tyvar"] $ Typ.TyVar <$> typeVariable
 
-record :: Parser Typ
+record :: (MonadParser parser) => parser Typ
 record = dbg ["typ", "record"] $ Typ.Record <$> braces
   (row `sepBy` token_ Token.Comma)
  where
-  row :: Parser Typ.Row
+  row :: (MonadParser parser) => parser Typ.Row
   row = do
     lbl <- label
     token_ Token.Colon

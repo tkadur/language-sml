@@ -26,7 +26,7 @@ import           Parser.Internal.Parsers.Type   ( typ )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses an expression
-expression :: FixityTable -> Parser Expr
+expression :: (MonadParser parser) => FixityTable -> parser Expr
 expression fixityTable = dbg ["expression"] $ do
   -- Handle left-recursive cases
   expr <- expression'
@@ -90,7 +90,7 @@ expression fixityTable = dbg ["expression"] $ do
     m <- match fixityTable
     return Expr.Fn { Expr.match = m }
 
-atomicExpression :: FixityTable -> Parser Expr
+atomicExpression :: (MonadParser parser) => FixityTable -> parser Expr
 atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
   [lit, vident, record, recordSelector, tup, lst, sqnc, letInEnd, parens]
  where
@@ -101,7 +101,7 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
 
   record = Expr.Record <$> braces (row `sepBy` token_ Token.Comma)
    where
-    row :: Parser Expr.Row
+    row :: (MonadParser parser) => parser Expr.Row
     row = do
       lab <- label
       token_ Token.Equal
@@ -132,10 +132,10 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
 
   parens = parenthesized (expression fixityTable)
 
-match :: FixityTable -> Parser Expr.Match
+match :: (MonadParser parser) => FixityTable -> parser Expr.Match
 match fixityTable = matchArm fixityTable `sepBy1` token_ Token.Pipe
 
-matchArm :: FixityTable -> Parser Expr.MatchArm
+matchArm :: (MonadParser parser) => FixityTable -> parser Expr.MatchArm
 matchArm fixityTable = do
   lhs <- pattern fixityTable
   token_ Token.Widearrow

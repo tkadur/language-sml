@@ -1,11 +1,11 @@
 module Parser.Internal.Basic
-  ( Parser
+  ( MonadParser
+  , Parser
   , Error
   , Comments
   , DebugLevel(..)
   , dbg
-  , dbgState
-  , dbgReader
+  , liftParser
   , nothing
   , never
   , eof
@@ -50,65 +50,70 @@ type UnderlyingMonad = RWS DebugLevel Comments ()
 
 type Parser = M.ParsecT Error Stream UnderlyingMonad
 
-dbg :: (Show a) => DebugLevel.Label -> Parser a -> Parser a
-dbg label parser = do
-  debug <- ask
-  case debug of
-    DebugLevel.Off -> parser
-    DebugLevel.On  -> dbg_parser
-    DebugLevel.ForLabels labels ->
-      if any (`isPrefixOf` label) labels then dbg_parser else parser
-  where dbg_parser = Megaparsec.Debug.dbg (intercalate "." label) parser
+class (MonadFail parser, M.MonadParsec Error Stream parser) => MonadParser parser where
+  dbg :: (Show a) => DebugLevel.Label -> parser a -> parser a
 
-dbgState :: (Show a, Show s)
-         => DebugLevel.Label
-         -> StateT s Parser a
-         -> StateT s Parser a
-dbgState = State.mapStateT . dbg
+  liftParser :: Parser a -> parser a
 
-dbgReader :: (Show a)
-          => DebugLevel.Label
-          -> ReaderT r Parser a
-          -> ReaderT r Parser a
-dbgReader = Reader.mapReaderT . dbg
+instance MonadParser Parser where
+  dbg label parser = do
+    debug <- ask
+    case debug of
+      DebugLevel.Off -> parser
+      DebugLevel.On  -> dbg_parser
+      DebugLevel.ForLabels labels ->
+        if any (`isPrefixOf` label) labels then dbg_parser else parser
+    where dbg_parser = Megaparsec.Debug.dbg (intercalate "." label) parser
+
+  liftParser = id
+
+instance (MonadParser parser, Show s) => MonadParser (StateT s parser) where
+  dbg        = State.mapStateT . dbg
+
+  liftParser = lift . liftParser
+
+instance (MonadParser parser) => MonadParser (ReaderT r parser) where
+  dbg        = Reader.mapReaderT . dbg
+
+  liftParser = lift . liftParser
 
 -- | Consumes no input and succeeds
-nothing :: (M.MonadParsec Error Stream p) => p ()
+nothing :: (MonadParser parser) => parser ()
 nothing = return ()
 
 -- | Consumes no input and fails
-never :: (M.MonadParsec Error Stream p) => p a
+never :: (MonadParser parser) => parser a
 never = empty
 
-eof :: Parser ()
+eof :: (MonadParser parser) => parser ()
 eof = token_ Token.Eof >> M.eof
 
-token_ :: (M.MonadParsec Error Stream p) => Token -> p ()
+token_ :: (MonadParser parser) => Token -> parser ()
 token_ tok = M.satisfy (\(_, mtok) -> Marked.value mtok == tok) >> nothing
 
-tokenWith :: (Token -> Maybe a) -> Parser a
+tokenWith :: (MonadParser parser) => (Token -> Maybe a) -> parser a
 tokenWith f = M.token (\(_, mtok) -> f $ Marked.value mtok) Set.empty
 
 -- | @braces p@ parses @p@ between braces
-braces :: (Show a) => Parser a -> Parser a
+braces :: (MonadParser parser, Show a) => parser a -> parser a
 braces = dbg ["braces"] . between (token_ Token.Lbrace) (token_ Token.Rbrace)
 
 -- | @brackets p@ parses @p@ between brackets
-brackets :: (Show a) => Parser a -> Parser a
+brackets :: (MonadParser parser, Show a) => parser a -> parser a
 brackets =
   dbg ["brackets"] . between (token_ Token.Lbracket) (token_ Token.Rbracket)
 
 -- | @parenthesized p@ parses @p@ between parentheses
-parenthesized :: (Show a) => Parser a -> Parser a
+parenthesized :: (MonadParser parser, Show a) => parser a -> parser a
 parenthesized =
   dbg ["parenthesized"] . between (token_ Token.Lparen) (token_ Token.Rparen)
 
 -- | @list p@ parses a list, parsing each element with @p@
-list :: (Show a) => Parser a -> Parser [a]
+list :: (MonadParser parser, Show a) => parser a -> parser [a]
 list parser = dbg ["list"] $ brackets (parser `sepBy` token_ Token.Comma)
 
 -- | @tuple p@ parses a tuple, parsing each element with @p@
-tuple :: (Show a) => Parser a -> Parser [a]
+tuple :: (MonadParser parser, Show a) => parser a -> parser [a]
 tuple parser = dbg ["tuple"]
   $ parenthesized (choice [nonemptyTuple, emptyTuple])
  where
@@ -118,7 +123,7 @@ tuple parser = dbg ["tuple"]
   emptyTuple    = return []
 
 -- | @xseq p@ parses a @pseq@ as given in the definition
-xseq :: (Show a) => Parser a -> Parser [a]
+xseq :: (MonadParser parser, Show a) => parser a -> parser [a]
 xseq parser = dbg ["xseq"] $ choice [sqnce, singleton, emptySeq]
  where
   emptySeq  = dbg ["xseq", "emptySeq"] $ return []

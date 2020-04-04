@@ -56,14 +56,30 @@ data Infixable a where
   Pat ::Infixable Pat
   Expr ::Infixable Expr
 
-makeParser :: Infixable a -> Parser a -> FixityTable -> Parser a
+makeParser :: (MonadParser parser)
+           => Infixable a
+           -> parser a
+           -> FixityTable
+           -> parser a
 makeParser infixable parser FixityTable { table } =
   table
     |> getTable infixable
     -- We store the table in ascending precedence order,
     -- but E.makeExprParser expects it in descending order
     |> reverse
+    |> liftOperators
     |> E.makeExprParser parser
+ where
+  liftOperators :: (MonadParser parser)
+                => [[E.Operator Parser a]]
+                -> [[E.Operator parser a]]
+  liftOperators = fmap . fmap $ \case
+    E.InfixN  cmb -> E.InfixN (liftParser cmb)
+    E.InfixL  cmb -> E.InfixL (liftParser cmb)
+    E.InfixR  cmb -> E.InfixR (liftParser cmb)
+    E.Prefix  cmb -> E.Prefix (liftParser cmb)
+    E.Postfix cmb -> E.Postfix (liftParser cmb)
+    E.TernR   cmb -> E.TernR (liftParser <$> liftParser cmb)
 
 getTable :: Infixable a -> Table -> [[E.Operator Parser a]]
 getTable infixable = case infixable of
