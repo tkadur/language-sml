@@ -246,7 +246,7 @@ readNum = read . map
   )
 
 readWord :: String -> Positive
-readWord = Positive.positive . read . filter (/= 'w')
+readWord = (Positive.positive @Integer) . read . filter (/= 'w')
 
 startString :: AlexAction (Marked Token)
 startString input _ = do

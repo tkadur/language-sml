@@ -14,8 +14,8 @@ instance Pretty Lit where
       let (prefix, i') = fixNegative i in pretty $ prefix ++ printf "%d" i'
     Hex i ->
       let (prefix, i') = fixNegative i in pretty $ prefix ++ printf "0x%x" i'
-    Word    w -> "0w" <> pretty w
-    HexWord w -> "0wx" <> pretty w
+    Word    w -> hcat ["0w", pretty w]
+    HexWord w -> hcat ["0wx", pretty w]
     Real    n -> let (prefix, n') = fixNegative n in pretty $ prefix ++ show n'
     Char    c -> pretty $ toString c
     String  s -> pretty $ toString s

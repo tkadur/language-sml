@@ -1,5 +1,3 @@
-{-# LANGUAGE EmptyDataDeriving #-}
-
 module Ast.Ident.Label where
 
 import           Ast.Ident.Common               ( Ident )

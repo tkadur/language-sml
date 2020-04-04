@@ -1,6 +1,7 @@
 module Lib where
 
 import           Data.Text.Prettyprint.Doc
+import           Data.Text.Prettyprint.Doc.Util
 
 import           Parser
 import           Parser.DebugLevel
@@ -18,8 +19,13 @@ test parser debugLevel input = do
   putStrLn "Parser: "
   parseTest parser debugLevel strm
 
-testPretty :: (Show a, Pretty a) => Parser a -> DebugLevel -> Text -> IO ()
-testPretty parser debugLevel input = do
+testPretty :: (Show a, Pretty a)
+           => Parser a
+           -> DebugLevel
+           -> Int
+           -> Text
+           -> IO ()
+testPretty parser debugLevel w input = do
   putStrLn "Lexer: "
   lexTest input
 
@@ -33,4 +39,5 @@ testPretty parser debugLevel input = do
   let Right parsed = runParser parser debugLevel "test" strm
   putStrLn ""
   putStrLn "Formatted: "
-  print (pretty parsed)
+  putDocW w (pretty parsed)
+  putStrLn ""
