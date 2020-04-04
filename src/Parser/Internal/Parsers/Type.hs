@@ -63,7 +63,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
       -- Product type
       -- Flatten chains when possible
     , [ let tup t1 t2 = Marked.merge
-              t2
+              t1
               t2
               (case Marked.value t2 of
                 Typ.Tuple ts -> Typ.Tuple (t1 `NonEmpty.cons` ts)
