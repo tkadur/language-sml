@@ -3,14 +3,15 @@ module Lexer.Token where
 import           Data.Scientific                ( Scientific )
 
 import           Ast.Lit.Character              ( Character )
+import           Common.Positive                ( Positive )
 
 data Token
     = Eof
     -- Numeric literals
     | Int Integer
     | Hex Integer
-    | Word Integer
-    | HexWord Integer
+    | Word Positive
+    | HexWord Positive
     | Real Scientific
     -- Char/string literals
     | Character [Character]

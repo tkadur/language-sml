@@ -7,8 +7,9 @@ import           Text.Read                      ( read )
 
 import qualified Common.Marked                 as Marked
 import           Common.Marked                  ( Marked )
-import qualified Common.Position               as Position
 import           Common.Position                ( Position )
+import qualified Common.Position               as Position
+import           Common.Positive                ( Positive )
 import qualified Common.Positive               as Positive
 
 import           Ast.Lit.Character
@@ -244,8 +245,8 @@ readNum = read . map
     c   -> c
   )
 
-readWord :: String -> Integer
-readWord = read . filter (/= 'w')
+readWord :: String -> Positive
+readWord = Positive.positive . read . filter (/= 'w')
 
 startString :: AlexAction (Marked Token)
 startString input _ = do

@@ -2,7 +2,6 @@ module Parser.Internal.Basic
   ( MonadParser
   , Parser
   , Error
-  , Comments
   , DebugLevel(..)
   , dbg
   , liftParser
@@ -29,7 +28,6 @@ import           Control.Monad.Combinators.NonEmpty
                                                 ( sepBy1 )
 import qualified Control.Monad.Reader          as Reader
 import qualified Control.Monad.State.Strict    as State
-import           Control.Monad.RWS.Strict       ( RWS )
 import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Data.Set                      as Set
 import qualified Data.Vector                   as Vector
@@ -48,11 +46,9 @@ import qualified Parser.Internal.Token         as Token
 import           Parser.Internal.Stream         ( Stream )
 import qualified Parser.Internal.Stream        as Stream
 
-type Comments = [M.SourcePos]
-
 type Error = Void
 
-type UnderlyingMonad = RWS DebugLevel Comments ()
+type UnderlyingMonad = Reader DebugLevel
 
 type Parser = M.ParsecT Error Stream UnderlyingMonad
 

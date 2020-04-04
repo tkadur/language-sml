@@ -1,6 +1,7 @@
 module Lexer
   ( Result
   , Error
+  , Comment
   , runLexer
   , lexTest
   )

@@ -28,6 +28,7 @@ dependencies:
   - mtl
   - parser-combinators
   - pretty-simple
+  - prettyprinter
   - scientific
   - text
   - unordered-containers

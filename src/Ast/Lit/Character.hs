@@ -19,7 +19,7 @@ data Character
 instance ToString [Character] where
   toString = foldMap
     (\case
-      Char c         -> printf "%c" c
+      Char c         -> [c]
       Newline        -> "\\n"
       VerticalTab    -> "\\v"
       FormFeed       -> "\\f"

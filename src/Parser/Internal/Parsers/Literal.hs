@@ -6,6 +6,7 @@ import           Data.Scientific                ( Scientific )
 import           Ast.Lit.Character              ( Character )
 import           Ast.Lit                        ( Lit )
 import qualified Ast.Lit                       as Lit
+import           Common.Positive                ( Positive )
 import           Parser.Internal.Basic
 import qualified Parser.Internal.Token         as Token
 
@@ -52,7 +53,7 @@ hexadecimal = dbg ["hexadecimal"] $ tokenWith
   )
 
 -- | Parses a word literal
-word :: (MonadParser parser) => parser Integer
+word :: (MonadParser parser) => parser Positive
 word = dbg ["word"] $ tokenWith
   (\case
     Token.Word i -> Just i
@@ -60,7 +61,7 @@ word = dbg ["word"] $ tokenWith
   )
 
 -- | Parses a hexadecimal word literal
-hexword :: (MonadParser parser) => parser Integer
+hexword :: (MonadParser parser) => parser Positive
 hexword = dbg ["hexword"] $ tokenWith
   (\case
     Token.HexWord i -> Just i
