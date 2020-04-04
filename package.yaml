@@ -31,6 +31,7 @@ dependencies:
   - scientific
   - text
   - unordered-containers
+  - vector
 
 default-extensions:
   # Basics
