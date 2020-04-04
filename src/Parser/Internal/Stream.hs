@@ -5,13 +5,10 @@ module Parser.Internal.Stream
   )
 where
 
-import           Data.List                      ( span )
-import qualified Data.List.NonEmpty            as NonEmpty
 import           Data.Vector                    ( Vector
                                                 , (!?)
                                                 )
 import qualified Data.Vector                   as Vector
-import qualified Relude.Unsafe                 as Unsafe
 import qualified Text.Megaparsec               as M
 
 import           Common.Marked                  ( Marked )

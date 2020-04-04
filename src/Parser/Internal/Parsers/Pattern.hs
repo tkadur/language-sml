@@ -4,9 +4,6 @@ import           Control.Monad.Combinators      ( choice
                                                 , many
                                                 , sepBy
                                                 )
-import           Control.Applicative.Combinators.NonEmpty
-                                                ( some )
-import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
 import           Ast.Pat                        ( MPat )

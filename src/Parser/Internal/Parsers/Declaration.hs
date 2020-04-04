@@ -20,9 +20,7 @@ import           Ast.Decl                       ( Decl
                                                 , MDecl
                                                 )
 import qualified Ast.Decl                      as Decl
-import           Ast.Ident.ValueIdent           ( ValueIdent
-                                                , MValueIdent
-                                                )
+import           Ast.Ident.ValueIdent           ( MValueIdent )
 import qualified Common.Marked                 as Marked
 import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )

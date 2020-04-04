@@ -5,7 +5,6 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( sepBy1 )
-import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
 import           Ast.Expr                       ( MExpr )
