@@ -27,6 +27,7 @@ dependencies:
   - megaparsec
   - mtl
   - parser-combinators
+  - pretty-simple
   - scientific
   - text
   - unordered-containers
