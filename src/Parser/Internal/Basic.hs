@@ -17,6 +17,7 @@ module Parser.Internal.Basic
   , list
   , tuple
   , xseq
+  , marked
   )
 where
 
@@ -34,13 +35,17 @@ import qualified Data.Set                      as Set
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 
+import           Common.Marked                  ( Marked )
 import qualified Common.Marked                 as Marked
+import qualified Common.Position               as Position
+import qualified Common.Positive               as Positive
 import           Parser.DebugLevel              ( DebugLevel )
 import qualified Parser.DebugLevel             as DebugLevel
 import           Parser.Internal.Combinators    ( sepBy2 )
 import           Parser.Internal.Token          ( Token )
 import qualified Parser.Internal.Token         as Token
 import           Parser.Internal.Stream         ( Stream )
+import qualified Parser.Internal.Stream        as Stream
 
 type Comments = [M.SourcePos]
 
@@ -132,3 +137,36 @@ xseq parser = dbg ["xseq"] $ choice [sqnce, singleton, emptySeq]
 
   sqnce     = dbg ["xseq", "sequence"] $ NonEmpty.toList <$> parenthesized
     (parser `sepBy1` token_ Token.Comma)
+
+
+marked :: (MonadParser parser) => parser a -> parser (Marked a)
+marked parser = do
+  (parsedTokens, value) <- M.match parser
+  remainingTokens       <- Stream.tokens <$> M.getInput
+
+  case (nonEmpty parsedTokens, nonEmpty remainingTokens) of
+    (Just tokens, _) ->
+      let ((_, start), (_, end)) = (head tokens, last tokens)
+      in  return $ Marked.merge start end value
+    -- If nothing was consumed, take our best guess
+    (Nothing, Just tokens) ->
+      let Marked.Marked { Marked.startPosition } = head tokens
+      in  return $ Marked.Marked { Marked.value
+                                 , Marked.startPosition
+                                 , Marked.endPosition   = startPosition
+                                 }
+    -- If nothing was consumed and no input is left, last rsort
+    (Nothing, Nothing) -> do
+      M.SourcePos {..} <- M.getSourcePos
+
+      let position = Position.Position
+            { Position.file = sourceName
+            , Position.line = Positive.positive (M.unPos sourceLine)
+            , Position.col  = Positive.positive (M.unPos sourceColumn)
+            }
+
+      return $ Marked.Marked { Marked.value
+                             , Marked.startPosition = position
+                             , Marked.endPosition   = position
+                             }
+

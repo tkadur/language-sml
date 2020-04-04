@@ -2,3 +2,4 @@
 language-sml.cabal
 *~
 .vscode/*
+.DS_Store

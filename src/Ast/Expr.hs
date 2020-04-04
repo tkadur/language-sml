@@ -1,68 +1,71 @@
 module Ast.Expr where
 
 import           Ast.Associativity              ( Associativity )
-import           Ast.Ident.Label                ( Label )
-import           Ast.Ident.Long                 ( Long )
-import           Ast.Ident.Op                   ( Op )
-import           Ast.Ident.ValueIdent           ( ValueIdent )
-import {-# SOURCE #-} Ast.Decl                  ( Decl )
+import           Ast.Ident.Label                ( MLabel )
+import           Ast.Ident.Long                 ( MLong )
+import           Ast.Ident.Op                   ( MOp )
+import           Ast.Ident.ValueIdent           ( MValueIdent )
+import {-# SOURCE #-} Ast.Decl                  ( MDecl )
 import           Ast.Lit                        ( Lit )
-import           Ast.Pat                        ( Pat )
-import           Ast.Typ                        ( Typ )
+import           Ast.Pat                        ( MPat )
+import           Ast.Typ                        ( MTyp )
+import           Common.Marked                  ( Marked )
+
+type MExpr = Marked Expr
 
 data Expr
   = Lit Lit
-  | Ident (Op (Long ValueIdent))
+  | Ident (MOp (MLong MValueIdent))
   | Record [Row]
-  | RecordSelector Label
-  | Tuple [Expr]
-  | List [Expr]
-  | Sequence (NonEmpty Expr)
+  | RecordSelector MLabel
+  | Tuple [MExpr]
+  | List [MExpr]
+  | Sequence (NonEmpty MExpr)
   | Let
-    { decl :: Decl
-    , exprs :: NonEmpty Expr
+    { decl :: MDecl
+    , exprs :: NonEmpty MExpr
     }
     -- For convenience, we directly express application chains instead of
     -- using nested @App@s.
   | App
-    { function :: Expr
-    , args :: NonEmpty Expr
+    { function :: MExpr
+    , args :: NonEmpty MExpr
     }
   | InfixApp
-    { lhs :: Expr
-    , op :: ValueIdent
+    { lhs :: MExpr
+    , op :: MValueIdent
     , precedence :: Int
     , associativity :: Associativity
-    , rhs :: Expr
+    , rhs :: MExpr
     }
   | Annot
-    { expr :: Expr
-    , typ :: Typ
+    { expr :: MExpr
+    , typ :: MTyp
     }
   | Andalso
-    { lhs :: Expr
-    , rhs :: Expr
+    { lhs :: MExpr
+    , rhs :: MExpr
     }
   | Orelse
-    { lhs :: Expr
-    , rhs :: Expr
+    { lhs :: MExpr
+    , rhs :: MExpr
     }
   | Handle
-    { expr :: Expr
+    { expr :: MExpr
     , match :: Match
     }
-  | Raise Expr
+  | Raise MExpr
   | If
-    { cond :: Expr
-    , ifExpr :: Expr
-    , elseExpr :: Expr
+    { cond :: MExpr
+    , ifExpr :: MExpr
+    , elseExpr :: MExpr
     }
   | While
-    { cond :: Expr
-    , body :: Expr
+    { cond :: MExpr
+    , body :: MExpr
     }
   | Case
-    { expr :: Expr
+    { expr :: MExpr
     , match :: Match
     }
   | Fn
@@ -74,14 +77,14 @@ type Match = NonEmpty MatchArm
 
 data MatchArm
   = MatchArm
-    { lhs :: Pat
-    , rhs :: Expr
+    { lhs :: MPat
+    , rhs :: MExpr
     }
   deriving (Eq, Show)
 
 data Row
   = Row
-    { label :: Label
-    , expr :: Expr
+    { label :: MLabel
+    , expr :: MExpr
     }
   deriving (Eq, Show)

@@ -17,7 +17,7 @@ runLexer :: FilePath -> Text -> Either Error Result
 runLexer filepath s = revComments <$> runAlex' filepath (toString s) lex
   where revComments (comments, tokens) = (reverse comments, tokens)
 
-lexTest :: Text -> IO ()
-lexTest s = case runLexer "" s of
-  Right res -> print res
+lexTest :: Text -> (Result -> IO ()) -> IO ()
+lexTest s prnt = case runLexer "" s of
+  Right res -> prnt res
   Left  err -> error $ toText err

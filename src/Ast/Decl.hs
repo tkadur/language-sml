@@ -1,22 +1,25 @@
 module Ast.Decl where
 
-import           Ast.Expr                       ( Expr )
-import           Ast.Pat                        ( Pat )
-import           Ast.Ident.Long                 ( Long )
-import           Ast.Ident.Op                   ( Op )
-import           Ast.Ident.StructureIdent       ( StructureIdent )
-import           Ast.Ident.TyVar                ( TyVar )
-import           Ast.Ident.TyCon                ( TyCon )
-import           Ast.Ident.ValueIdent           ( ValueIdent )
-import           Ast.Typ                        ( Typ )
+import           Ast.Expr                       ( MExpr )
+import           Ast.Pat                        ( MPat )
+import           Ast.Ident.Long                 ( MLong )
+import           Ast.Ident.Op                   ( MOp )
+import           Ast.Ident.StructureIdent       ( MStructureIdent )
+import           Ast.Ident.TyVar                ( MTyVar )
+import           Ast.Ident.TyCon                ( MTyCon )
+import           Ast.Ident.ValueIdent           ( MValueIdent )
+import           Ast.Typ                        ( MTyp )
+import           Common.Marked                  ( Marked )
+
+type MDecl = Marked Decl
 
 data Decl
   = Val
-    { tyvars :: [TyVar]
+    { tyvars :: [MTyVar]
     , valbinds :: ValBinds
     }
   | Fun
-    { tyvars :: [TyVar]
+    { tyvars :: [MTyVar]
     , funbinds :: FunBinds
     }
   | TypAlias
@@ -27,35 +30,35 @@ data Decl
     , withtype :: Maybe TypBinds
     }
   | DatatypeReplication
-    { new :: TyCon
-    , old :: Long TyCon
+    { new :: MTyCon
+    , old :: MLong MTyCon
     }
   | Abstype
     { datbinds :: DatBinds
     , withtype :: Maybe TypBinds
-    , decl :: Decl
+    , decl :: MDecl
     }
   | Exception
     { exnbinds :: ExnBinds
     }
   | Local
-    { decl :: Decl
-    , body :: Decl
+    { decl :: MDecl
+    , body :: MDecl
     }
-  | Open (NonEmpty (Long StructureIdent))
+  | Open (NonEmpty (MLong MStructureIdent))
     -- For convenience, express sequence chains with a list instead of
-    -- nested @Decl@s
-  | Sequence [Decl]
+    -- nested @MDecl@s
+  | Sequence [MDecl]
   | Infix
     { precedence :: Maybe Int
-    , idents :: NonEmpty ValueIdent
+    , idents :: NonEmpty MValueIdent
     }
   | Infixr
     { precedence :: Maybe Int
-    , idents :: NonEmpty ValueIdent
+    , idents :: NonEmpty MValueIdent
     }
   | Nonfix
-    { idents :: NonEmpty ValueIdent
+    { idents :: NonEmpty MValueIdent
     }
   deriving (Eq, Show)
 
@@ -72,12 +75,12 @@ type ExnBinds = NonEmpty ExnBind
 data ValBind
   = ValBind
     { isRec :: Bool
-    , lhs :: Pat
-    , rhs :: Expr
+    , lhs :: MPat
+    , rhs :: MExpr
     }
   deriving (Eq, Show)
 
-data FunBind
+newtype FunBind
   = FunBind
     { clauses :: NonEmpty FunClause
     }
@@ -85,52 +88,52 @@ data FunBind
 
 data TypBind
   = TypBind
-    { tyvars :: [TyVar]
-    , tycon :: TyCon
-    , typ :: Typ
+    { tyvars :: [MTyVar]
+    , tycon :: MTyCon
+    , typ :: MTyp
     }
   deriving (Eq, Show)
 
 data DatBind
   = DatBind
-    { tyvars :: [TyVar]
-    , tycon :: TyCon
+    { tyvars :: [MTyVar]
+    , tycon :: MTyCon
     , conbinds :: NonEmpty ConBind
     }
   deriving (Eq, Show)
 
 data ConBind
   = ConBind
-    { constructor :: Op ValueIdent
-    , arg :: Maybe Typ
+    { constructor :: MOp MValueIdent
+    , arg :: Maybe MTyp
     }
   deriving (Eq, Show)
 
 data ExnBind
   = ExnBind
-    { constructor :: Op ValueIdent
-    , arg :: Maybe Typ
+    { constructor :: MOp MValueIdent
+    , arg :: Maybe MTyp
     }
   | ExnReplication
-    { new :: Op ValueIdent
-    , old :: Op (Long ValueIdent )
+    { new :: MOp MValueIdent
+    , old :: MOp (MLong MValueIdent )
     }
   deriving (Eq, Show)
 
 -- | Function declaration clause
 data FunClause
   = InfixClause
-    { lhs :: Pat
-    , infixName :: ValueIdent
-    , rhs :: Pat
-    , infixArgs :: [Pat]
-    , returnType :: Maybe Typ
-    , body :: Expr
+    { lhs :: MPat
+    , infixName :: MValueIdent
+    , rhs :: MPat
+    , infixArgs :: [MPat]
+    , returnType :: Maybe MTyp
+    , body :: MExpr
     }
   | NonfixClause
-    { nonfixName :: Op ValueIdent
-    , nonfixArgs :: NonEmpty Pat
-    , returnType :: Maybe Typ
-    , body :: Expr
+    { nonfixName :: MOp MValueIdent
+    , nonfixArgs :: NonEmpty MPat
+    , returnType :: Maybe MTyp
+    , body :: MExpr
     }
   deriving (Eq, Show)

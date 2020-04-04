@@ -20,18 +20,19 @@ import qualified Text.Show
 
 import           Ast.Associativity              ( Associativity )
 import qualified Ast.Associativity             as Associativity
-import           Ast.Expr                       ( Expr )
+import           Ast.Expr                       ( MExpr )
 import qualified Ast.Expr                      as Expr
-import           Ast.Pat                        ( Pat )
+import           Ast.Pat                        ( MPat )
 import qualified Ast.Pat                       as Pat
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import qualified Ast.Ident.ValueIdent          as ValueIdent
+import qualified Common.Marked                 as Marked
 import           Parser.Internal.Basic
 import qualified Parser.Internal.Token         as Token
 
 type Precedence = Int
 
-type TableEntry = (ValueIdent, E.Operator Parser Pat, E.Operator Parser Expr)
+type TableEntry = (ValueIdent, E.Operator Parser MPat, E.Operator Parser MExpr)
 
 type Table = [[TableEntry]]
 
@@ -53,8 +54,8 @@ instance Show FixityTable where
       <> "\n"
 
 data Infixable a where
-  Pat ::Infixable Pat
-  Expr ::Infixable Expr
+  Pat ::Infixable MPat
+  Expr ::Infixable MExpr
 
 makeParser :: (MonadParser parser)
            => Infixable a
@@ -86,13 +87,13 @@ getTable infixable = case infixable of
   Pat  -> getPatTable
   Expr -> getExprTable
  where
-  getPatTable :: Table -> [[E.Operator Parser Pat]]
+  getPatTable :: Table -> [[E.Operator Parser MPat]]
   getPatTable =
     -- Patterns cannot contain infix "="
     removeOperatorFromTable (ValueIdent.ValueIdent "=")
       >>> (liftTable $ \(_, patTable, _) -> patTable)
 
-  getExprTable :: Table -> [[E.Operator Parser Expr]]
+  getExprTable :: Table -> [[E.Operator Parser MExpr]]
   getExprTable = liftTable $ \(_, _, exprTable) -> exprTable
 
 -- | Lifts a function over `TableEntry`s to a function over `Table`s
@@ -156,10 +157,14 @@ basisFixityTable = FixityTable
               -- Application
             , [ let separator = nothing
                     -- Flatten application chains when possible
-                    expr function arg = case function of
-                      Expr.App { Expr.args } ->
-                        function { Expr.args = args <> (arg :| []) }
-                      _ -> Expr.App { Expr.function, Expr.args = arg :| [] }
+                    expr function arg = Marked.merge
+                      function
+                      arg
+                      (case Marked.value function of
+                        fn@Expr.App { Expr.args } ->
+                          fn { Expr.args = args <> (arg :| []) }
+                        _ -> Expr.App { Expr.function, Expr.args = arg :| [] }
+                      )
                 in  ( ValueIdent.ValueIdent ""
                     -- application cannot appear in patterns
                     , E.InfixL never
@@ -215,25 +220,34 @@ basisFixityTable = FixityTable
 infixExprOperator :: Precedence -> Associativity -> Text -> TableEntry
 infixExprOperator precedence associativity name =
   ( ValueIdent.ValueIdent name
-  , operator (pat <$ separator)
-  , operator (expr <$ separator)
+  , operator (pat <$> separator)
+  , operator (expr <$> separator)
   )
  where
-  separator = token_ (Token.Alphanumeric name) <|> token_ (Token.Symbolic name)
+  separator =
+    marked $ token_ (Token.Alphanumeric name) <|> token_ (Token.Symbolic name)
 
-  expr lhs rhs = Expr.InfixApp { Expr.lhs
-                               , Expr.op         = ValueIdent.ValueIdent name
-                               , Expr.precedence
-                               , Expr.associativity
-                               , Expr.rhs
-                               }
+  expr sep lhs rhs = Marked.merge
+    lhs
+    rhs
+    (Expr.InfixApp { Expr.lhs
+                   , Expr.op         = ValueIdent.ValueIdent name <$ sep
+                   , Expr.precedence
+                   , Expr.associativity
+                   , Expr.rhs
+                   }
+    )
 
-  pat lhs rhs = Pat.InfixConstructed { Pat.lhs
-                                     , Pat.op = ValueIdent.ValueIdent name
-                                     , Pat.precedence
-                                     , Pat.associativity
-                                     , Pat.rhs
-                                     }
+  pat sep lhs rhs = Marked.merge
+    lhs
+    rhs
+    (Pat.InfixConstructed { Pat.lhs
+                          , Pat.op         = ValueIdent.ValueIdent name <$ sep
+                          , Pat.precedence
+                          , Pat.associativity
+                          , Pat.rhs
+                          }
+    )
 
   operator :: forall a . Parser (a -> a -> a) -> E.Operator Parser a
   operator = case associativity of

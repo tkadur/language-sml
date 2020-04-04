@@ -41,9 +41,14 @@ runParser parser debugLevel filename input = (, comments) <$> result
   (result, (), comments) =
     RWS.runRWS (M.runParserT (parser <* eof) filename input) debugLevel ()
 
-parseTest :: (Show a) => Parser a -> DebugLevel -> Stream -> IO ()
-parseTest parser debugLevel input =
+parseTest :: (Show a)
+          => Parser a
+          -> DebugLevel
+          -> Stream
+          -> ((a, Comments) -> IO ())
+          -> IO ()
+parseTest parser debugLevel input prnt =
   case runParser parser debugLevel filename input of
     Left  err -> putStr (E.errorBundlePretty err)
-    Right (parsed, comments) -> print (parsed, comments)
+    Right (parsed, comments) -> prnt (parsed, comments)
   where filename = ""

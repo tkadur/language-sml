@@ -1,5 +1,6 @@
 module Common.Marked
   ( Marked(..)
+  , merge
   )
 where
 
@@ -17,3 +18,9 @@ instance (Eq a) => Eq (Marked a) where
 
 instance (Ord a) => Ord (Marked a) where
   compare = compare `on` value
+
+-- | @merge m1 m2 x@ has the @startPosition@ of @m1@, the
+--   @endPosition@ of @m2@, and @x@ as the value.
+merge :: Marked a -> Marked b -> c -> Marked c
+merge Marked { startPosition } Marked { endPosition } value =
+  Marked { value, startPosition, endPosition }

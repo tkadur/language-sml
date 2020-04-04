@@ -1,14 +1,17 @@
 module Parser.Internal.Parsers.Pattern where
 
 import           Control.Monad.Combinators      ( choice
+                                                , many
                                                 , sepBy
                                                 )
 import           Control.Applicative.Combinators.NonEmpty
                                                 ( some )
+import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
-import           Ast.Pat                        ( Pat )
+import           Ast.Pat                        ( MPat )
 import qualified Ast.Pat                       as Pat
+import qualified Common.Marked                 as Marked
 import           Parser.Internal.Basic   hiding ( Parser )
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
@@ -24,15 +27,15 @@ import           Parser.Internal.Parsers.Type   ( typ )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses a pattern
-pattern :: (MonadParser parser) => FixityTable -> parser Pat
+pattern :: (MonadParser parser) => FixityTable -> parser MPat
 pattern fixityTable = dbg ["pattern"] $ do
   -- Handle left-recursive type annotations
   pat         <- infixed
-  maybeAnnots <- optional $ some (token_ Token.Colon >> typ)
-  return $ case maybeAnnots of
+  maybeAnnots <- many (token_ Token.Colon >> typ)
+  return $ case nonEmpty maybeAnnots of
     Nothing -> pat
-    Just (annot :| annots) ->
-      foldl' Pat.Annot (Pat.Annot { Pat.pat, Pat.typ = annot }) annots
+    Just annots ->
+      (foldl' (\p t -> Marked.merge p t (Pat.Annot p t)) pat annots)
  where
 
   -- Handle infix operators
@@ -43,13 +46,13 @@ pattern fixityTable = dbg ["pattern"] $ do
 
   -- Constructor application
   -- @try@ to prevent failure from trying to parse variable as constructor
-  constructed = dbg ["pattern", "constructed"] . try $ do
+  constructed = dbg ["pattern", "constructed"] . marked . try $ do
     constructor <- nonfixLongValueIdentifier fixityTable
     arg         <- atomicPattern fixityTable
     return Pat.Constructed { Pat.constructor, Pat.arg }
 
   -- @try@ to prevent failure from trying to parse variable as ident
-  asPat = try $ do
+  asPat = marked . try $ do
     ident <- op valueIdentifier
     annot <- optional (token_ Token.Colon >> typ)
     token_ Token.As
@@ -59,28 +62,28 @@ pattern fixityTable = dbg ["pattern"] $ do
 atomicPattern :: forall parser
                . (MonadParser parser)
               => FixityTable
-              -> parser Pat
+              -> parser MPat
 atomicPattern fixityTable = choice
   [wild, lit, vident, record, parens, tup, lst]
  where
 
   -- Wildcard
-  wild   = dbg ["pattern", "wild"] $ Pat.Wild <$ token_ Token.Underscore
+  wild = dbg ["pattern", "wild"] . marked $ Pat.Wild <$ token_ Token.Underscore
 
   -- Literal
-  lit    = dbg ["pattern", "lit"] $ Pat.Lit <$> literal
+  lit = dbg ["pattern", "lit"] . marked $ Pat.Lit <$> literal
 
   -- Value identifier
-  vident = dbg ["pattern", "ident"]
-    -- @try@ to prevent failure from trying to parse infix operator as ident
-    $ try (Pat.Ident <$> nonfixLongValueIdentifier fixityTable)
+  -- @try@ to prevent failure from trying to parse infix operator as ident
+  vident = dbg ["pattern", "ident"] . marked $ try
+    (Pat.Ident <$> nonfixLongValueIdentifier fixityTable)
 
   -- Record
-  record = dbg ["typ", "record"] $ Pat.Record <$> braces
+  record = dbg ["typ", "record"] . marked $ Pat.Record <$> braces
     (row `sepBy` token_ Token.Comma)
    where
-    row :: (MonadParser parser) => parser Pat.Row
-    row     = choice [rowWild, regularRow, rowPun]
+    row :: (MonadParser parser) => parser Pat.MRow
+    row     = marked $ choice [rowWild, regularRow, rowPun]
 
     rowWild = do
       token_ Token.Dotdotdot
@@ -104,7 +107,7 @@ atomicPattern fixityTable = choice
   parens = try $ parenthesized (pattern fixityTable)
 
   -- Tuple
-  tup    = Pat.Tuple <$> tuple (pattern fixityTable)
+  tup    = marked $ Pat.Tuple <$> tuple (pattern fixityTable)
 
   -- List
-  lst    = Pat.List <$> list (pattern fixityTable)
+  lst    = marked $ Pat.List <$> list (pattern fixityTable)

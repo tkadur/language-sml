@@ -1,6 +1,7 @@
 module Parser.Internal.Stream
   ( Stream()
   , stream
+  , tokens
   )
 where
 
@@ -62,8 +63,8 @@ instance M.Stream Stream where
   showTokens Proxy stokens = inputToString
     $ sliceInput (Marked.startPosition start) (Marked.endPosition end) inpt
    where
-    (inpt, start) = NonEmpty.head stokens
-    (_   , end  ) = NonEmpty.last stokens
+    (inpt, start) = head stokens
+    (_   , end  ) = last stokens
 
   tokensLength :: Proxy Stream -> NonEmpty SToken -> Int
   tokensLength Proxy = length . M.showTokens proxy
@@ -98,7 +99,7 @@ instance M.Stream Stream where
 
     tokens'          = drop (offset - 1) tokens
     pstateInput'     = Stream { input, tokens = tokens' }
-    pstateSourcePos' = case (last <$> NonEmpty.nonEmpty tokens, tokens') of
+    pstateSourcePos' = case (last <$> nonEmpty tokens, tokens') of
       (Just token, []) -> positionToSourcePos $ Marked.endPosition token
       (Nothing, []) -> pstateSourcePos
       (_, token : _) -> positionToSourcePos $ Marked.startPosition token

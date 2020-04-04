@@ -5,10 +5,12 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( sepBy1 )
+import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
-import           Ast.Expr                       ( Expr )
+import           Ast.Expr                       ( MExpr )
 import qualified Ast.Expr                      as Expr
+import qualified Common.Marked                 as Marked
 import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
@@ -26,7 +28,7 @@ import           Parser.Internal.Parsers.Type   ( typ )
 import qualified Parser.Internal.Token         as Token
 
 -- | Parses an expression
-expression :: (MonadParser parser) => FixityTable -> parser Expr
+expression :: (MonadParser parser) => FixityTable -> parser MExpr
 expression fixityTable = dbg ["expression"] $ do
   -- Handle left-recursive cases
   expr <- expression'
@@ -38,16 +40,19 @@ expression fixityTable = dbg ["expression"] $ do
     Nothing          -> return expr
     Just Token.Colon -> do
       t <- typ
-      return Expr.Annot { Expr.expr, Expr.typ = t }
+      return $ Marked.merge expr t (Expr.Annot { Expr.expr, Expr.typ = t })
     Just Token.Andalso -> do
       rhs <- expression fixityTable
-      return Expr.Andalso { Expr.lhs = expr, Expr.rhs }
+      return
+        $ Marked.merge expr rhs (Expr.Andalso { Expr.lhs = expr, Expr.rhs })
     Just Token.Orelse -> do
       rhs <- expression fixityTable
-      return Expr.Orelse { Expr.lhs = expr, Expr.rhs }
+      return $ Marked.merge expr rhs (Expr.Orelse { Expr.lhs = expr, Expr.rhs })
     Just Token.Handle -> do
       m <- match fixityTable
-      return Expr.Handle { Expr.expr, Expr.match = m }
+      return $ Marked.merge expr
+                            ((\Expr.MatchArm { Expr.rhs } -> rhs) $ last m)
+                            (Expr.Handle { Expr.expr, Expr.match = m })
     Just t -> error $ "invalid following token " <> show t
  where
   -- Non-left recursive cases
@@ -57,12 +62,12 @@ expression fixityTable = dbg ["expression"] $ do
                                        (atomicExpression fixityTable)
                                        fixityTable
 
-  raise = do
+  raise = marked $ do
     token_ Token.Raise
     expr <- expression fixityTable
     return $ Expr.Raise expr
 
-  ifThenElse = do
+  ifThenElse = marked $ do
     token_ Token.If
     cond <- expression fixityTable
     token_ Token.Then
@@ -71,35 +76,35 @@ expression fixityTable = dbg ["expression"] $ do
     elseExpr <- expression fixityTable
     return Expr.If { Expr.cond, Expr.ifExpr, Expr.elseExpr }
 
-  while = do
+  while = marked $ do
     token_ Token.While
     cond <- expression fixityTable
     token_ Token.Do
     body <- expression fixityTable
     return Expr.While { Expr.cond, Expr.body }
 
-  caseof = do
+  caseof = marked $ do
     token_ Token.Case
     expr <- expression fixityTable
     token_ Token.Of
     m <- match fixityTable
     return Expr.Case { Expr.expr, Expr.match = m }
 
-  fn = do
+  fn = marked $ do
     token_ Token.Fn
     m <- match fixityTable
     return Expr.Fn { Expr.match = m }
 
-atomicExpression :: (MonadParser parser) => FixityTable -> parser Expr
+atomicExpression :: (MonadParser parser) => FixityTable -> parser MExpr
 atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
   [lit, vident, record, recordSelector, tup, lst, sqnc, letInEnd, parens]
  where
-  lit    = Expr.Lit <$> literal
+  lit    = marked $ Expr.Lit <$> literal
 
   -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
-  vident = try $ Expr.Ident <$> nonfixLongValueIdentifier fixityTable
+  vident = marked . try $ Expr.Ident <$> nonfixLongValueIdentifier fixityTable
 
-  record = Expr.Record <$> braces (row `sepBy` token_ Token.Comma)
+  record = marked $ Expr.Record <$> braces (row `sepBy` token_ Token.Comma)
    where
     row :: (MonadParser parser) => parser Expr.Row
     row = do
@@ -108,21 +113,21 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
       expr <- expression fixityTable
       return Expr.Row { Expr.label = lab, Expr.expr }
 
-  recordSelector = do
+  recordSelector = marked $ do
     token_ Token.Octothorpe
     lab <- label
     return $ Expr.RecordSelector lab
 
   -- @try@ to prevent conflict with sqnc/parens
-  tup  = try $ Expr.Tuple <$> tuple (expression fixityTable)
+  tup  = marked . try $ Expr.Tuple <$> tuple (expression fixityTable)
 
-  lst  = Expr.List <$> list (expression fixityTable)
+  lst  = marked $ Expr.List <$> list (expression fixityTable)
 
   -- @try@ to prevent conflict with parens
-  sqnc = try $ Expr.Sequence <$> parenthesized
+  sqnc = marked . try $ Expr.Sequence <$> parenthesized
     (expression fixityTable `sepBy1` token_ Token.Semicolon)
 
-  letInEnd = do
+  letInEnd = marked $ do
     token_ Token.Let
     decl <- evalStateT declaration fixityTable
     token_ Token.In

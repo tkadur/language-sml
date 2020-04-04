@@ -9,15 +9,21 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( some )
+import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( observing
                                                 , try
                                                 )
 
 import           Ast.Associativity              ( Associativity )
 import qualified Ast.Associativity             as Associativity
-import           Ast.Decl                       ( Decl )
+import           Ast.Decl                       ( Decl
+                                                , MDecl
+                                                )
 import qualified Ast.Decl                      as Decl
-import           Ast.Ident.ValueIdent           ( ValueIdent )
+import           Ast.Ident.ValueIdent           ( ValueIdent
+                                                , MValueIdent
+                                                )
+import qualified Common.Marked                 as Marked
 import           Parser.Internal.Basic
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
@@ -50,13 +56,13 @@ type FixityMonadParser parser
 
 -- | Parses a declaration
 declaration :: (MonadParser parser, MonadState FixityTable parser)
-            => parser Decl
+            => parser MDecl
 declaration = dbg ["declaration"] $ do
     -- Handle declaration sequences
   decls <- declaration' `sepBy` (token_ Token.Semicolon <|> nothing)
-  return $ case decls of
-    [decl] -> decl
-    _      -> Decl.Sequence decls
+  case decls of
+    [decl] -> return decl
+    _      -> marked . return $ Decl.Sequence decls
  where
   declaration' = choice
     [ val
@@ -75,8 +81,8 @@ declaration = dbg ["declaration"] $ do
 
 -- Val declarations
 
-val :: (FixityMonadParser parser) => parser Decl
-val = dbg ["declaration", "val"] $ do
+val :: (FixityMonadParser parser) => parser MDecl
+val = dbg ["declaration", "val"] . marked $ do
   token_ Token.Val
   tyvars   <- xseq typeVariable
   valbinds <- binds Token.And valBind
@@ -100,8 +106,8 @@ valBind start = dbg ["delaration", "val", "valbind"] $ do
 
 -- Fun declarations
 
-fun :: (FixityMonadParser parser) => parser Decl
-fun = dbg ["declaration", "fun"] $ do
+fun :: (FixityMonadParser parser) => parser MDecl
+fun = dbg ["declaration", "fun"] . marked $ do
   token_ Token.Fun
   tyvars   <- xseq typeVariable
   funbinds <- binds Token.And funBind
@@ -151,8 +157,8 @@ funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
 
 -- Type aliases
 
-typAlias :: (FixityMonadParser parser) => parser Decl
-typAlias = dbg ["declaration", "typAlias"] $ do
+typAlias :: (FixityMonadParser parser) => parser MDecl
+typAlias = dbg ["declaration", "typAlias"] . marked $ do
   token_ Token.Type
   typbinds <- binds Token.And typBind
   return Decl.TypAlias { Decl.typbinds }
@@ -168,8 +174,8 @@ typBind start = dbg ["declaration", "typAlias", "typBind"] $ do
 
 -- Datatype replication
 
-datatypeReplication :: (FixityMonadParser parser) => parser Decl
-datatypeReplication = dbg ["declaration", "datatypeReplication"] $ do
+datatypeReplication :: (FixityMonadParser parser) => parser MDecl
+datatypeReplication = dbg ["declaration", "datatypeReplication"] . marked $ do
   -- @try@ to prevent conflict with regular datatype declarations
   new <- try $ do
     token_ Token.Datatype
@@ -182,8 +188,8 @@ datatypeReplication = dbg ["declaration", "datatypeReplication"] $ do
 
 -- Datatype declaration
 
-datatype :: (FixityMonadParser parser) => parser Decl
-datatype = dbg ["declaration", "datatype"] $ do
+datatype :: (FixityMonadParser parser) => parser MDecl
+datatype = dbg ["declaration", "datatype"] . marked $ do
   token_ Token.Datatype
   datbinds <- binds Token.And datBind
   withtype <- optional $ do
@@ -208,8 +214,8 @@ conBind start = dbg ["declaration", "datatype", "datBind", "conBind"] $ do
   return Decl.ConBind { Decl.constructor, Decl.arg }
 
 -- Abstype declarations
-abstype :: (FixityMonadParser parser) => parser Decl
-abstype = dbg ["declaration", "abstype"] $ do
+abstype :: (FixityMonadParser parser) => parser MDecl
+abstype = dbg ["declaration", "abstype"] . marked $ do
   token_ Token.Abstype
   datbinds <- binds Token.And datBind
   withtype <- optional $ do
@@ -221,8 +227,8 @@ abstype = dbg ["declaration", "abstype"] $ do
   return Decl.Abstype { Decl.datbinds, Decl.withtype, Decl.decl }
 
 -- Exception declarations
-exception :: (FixityMonadParser parser) => parser Decl
-exception = dbg ["declaration", "exception"] $ do
+exception :: (FixityMonadParser parser) => parser MDecl
+exception = dbg ["declaration", "exception"] . marked $ do
   token_ Token.Exception
   exnbinds <- binds Token.And exnBind
   return Decl.Exception { Decl.exnbinds }
@@ -261,8 +267,8 @@ binds separator bind = do
 
 -- Local blocks
 
-localInEnd :: (FixityMonadParser parser) => parser Decl
-localInEnd = dbg ["declaration", "localInEnd"] $ do
+localInEnd :: (FixityMonadParser parser) => parser MDecl
+localInEnd = dbg ["declaration", "localInEnd"] . marked $ do
   -- Store old fixity table
   fixityTable <- get
 
@@ -275,7 +281,7 @@ localInEnd = dbg ["declaration", "localInEnd"] $ do
   -- Reset fixity table, then scan body for fixity decls and update it
   -- TODO(tkadur) This is a terrible hack - find a better way
   put fixityTable
-  applyFixityDecl body
+  applyFixityDecl (Marked.value body)
 
   return Decl.Local { Decl.decl, Decl.body }
  where
@@ -285,51 +291,53 @@ localInEnd = dbg ["declaration", "localInEnd"] $ do
       addToFixityTable precedence idents Associativity.Left
     Decl.Infixr { Decl.precedence, Decl.idents } ->
       addToFixityTable precedence idents Associativity.Right
-    Decl.Nonfix { Decl.idents } -> modify $ FixityTable.removeOperators idents
-    Decl.Sequence decls -> mapM_ applyFixityDecl decls
+    Decl.Nonfix { Decl.idents } ->
+      modify $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
+    Decl.Sequence decls -> mapM_ applyFixityDecl (map Marked.value decls)
     _ -> return ()
 
 -- Open directives
 
-open :: (FixityMonadParser parser) => parser Decl
-open = dbg ["declaration", "open"] $ do
+open :: (FixityMonadParser parser) => parser MDecl
+open = dbg ["declaration", "open"] . marked $ do
   token_ Token.Open
   stridents <- some (long structureIdentifier)
   return $ Decl.Open stridents
 
 -- Fixity declarations
 
-nonfix :: (FixityMonadParser parser) => parser Decl
-nonfix = dbg ["declaration", "nonfix"] $ do
+nonfix :: (FixityMonadParser parser) => parser MDecl
+nonfix = dbg ["declaration", "nonfix"] . marked $ do
   token_ Token.Nonfix
   idents <- some valueIdentifier
-  modify $ FixityTable.removeOperators idents
+  modify $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
   return Decl.Nonfix { Decl.idents }
 
-infixrDecl :: (FixityMonadParser parser) => parser Decl
-infixrDecl = dbg ["declaration", "infixrDecl"] $ do
+infixrDecl :: (FixityMonadParser parser) => parser MDecl
+infixrDecl = dbg ["declaration", "infixrDecl"] . marked $ do
   (precedence, idents) <- fixityDecl Token.Infixr
   addToFixityTable precedence idents Associativity.Right
   return Decl.Infixr { Decl.precedence, Decl.idents }
 
-infixDecl :: (FixityMonadParser parser) => parser Decl
-infixDecl = dbg ["declaration", "infixDecl"] $ do
+infixDecl :: (FixityMonadParser parser) => parser MDecl
+infixDecl = dbg ["declaration", "infixDecl"] . marked $ do
   (precedence, idents) <- fixityDecl Token.Infix
   addToFixityTable precedence idents Associativity.Left
   return Decl.Infix { Decl.precedence, Decl.idents }
 
 addToFixityTable :: (FixityMonadParser parser)
                  => Maybe Int
-                 -> NonEmpty ValueIdent
+                 -> NonEmpty MValueIdent
                  -> Associativity
                  -> parser ()
 addToFixityTable precedence idents associativity =
-  modify
-    $ FixityTable.addOperators idents associativity (fromMaybe 0 precedence)
+  modify $ FixityTable.addOperators (NonEmpty.map Marked.value idents)
+                                    associativity
+                                    (fromMaybe 0 precedence)
 
 fixityDecl :: (MonadParser parser)
            => Token
-           -> parser (Maybe FixityTable.Precedence, NonEmpty ValueIdent)
+           -> parser (Maybe FixityTable.Precedence, NonEmpty MValueIdent)
 fixityDecl keyword = do
   token_ keyword
   precedence <- optional integer

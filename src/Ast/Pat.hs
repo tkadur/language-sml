@@ -1,51 +1,56 @@
 module Ast.Pat where
 
 import           Ast.Associativity              ( Associativity )
-import           Ast.Ident.Label                ( Label )
-import           Ast.Ident.Long                 ( Long )
-import           Ast.Ident.Op                   ( Op )
-import           Ast.Ident.ValueIdent           ( ValueIdent )
+import           Ast.Ident.Label                ( MLabel )
+import           Ast.Ident.Long                 ( MLong )
+import           Ast.Ident.Op                   ( MOp )
+import           Ast.Ident.ValueIdent           ( MValueIdent )
 import           Ast.Lit                        ( Lit )
-import           Ast.Typ                        ( Typ )
+import           Ast.Typ                        ( MTyp )
+import           Common.Marked                  ( Marked )
+
+type MPat = Marked Pat
+
+type MRow = Marked Row
 
 data Pat
   = Wild
   | Lit Lit
-  | Ident (Op (Long ValueIdent))
-  | Record [Row]
-  | Tuple [Pat]
-  | List [Pat]
+  | Ident (MOp (MLong MValueIdent))
+  | Record [MRow]
+  | Tuple [MPat]
+  | List [MPat]
   | Constructed
-    { constructor :: Op (Long ValueIdent)
-    , arg :: Pat
+    { constructor :: MOp (MLong MValueIdent)
+    , arg :: MPat
     }
   | InfixConstructed
-    { lhs :: Pat
-    , op :: ValueIdent
+    { lhs :: MPat
+    , op :: MValueIdent
     , precedence :: Int
     , associativity :: Associativity
-    , rhs :: Pat
+    , rhs :: MPat
     }
   | Annot
-    { pat :: Pat
-    , typ :: Typ
+    { pat :: MPat
+    , typ :: MTyp
     }
   | As
-    { ident :: Op ValueIdent
-    , annot :: Maybe Typ
-    , as :: Pat
+    { ident :: MOp MValueIdent
+    , annot :: Maybe MTyp
+    , as :: MPat
     }
   deriving (Eq, Show)
 
 data Row
   = RowWild
   | Row
-    { label :: Label
-    , pat :: Pat
+    { label :: MLabel
+    , pat :: MPat
     }
   | RowPun
-    { ident :: ValueIdent
-    , annot :: Maybe Typ
-    , as :: Maybe Pat
+    { ident :: MValueIdent
+    , annot :: Maybe MTyp
+    , as :: Maybe MPat
     }
   deriving (Eq, Show)
