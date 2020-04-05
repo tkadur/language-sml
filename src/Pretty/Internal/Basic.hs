@@ -130,7 +130,7 @@ instance Monoid (Doc ann) where
 class Pretty a where
   pretty :: a -> Doc ann
 
-instance (Pretty a) => Pretty (Marked a) where
+instance (Pretty a, Show a) => Pretty (Marked a) where
   pretty marked = do
     (past, pastPretty) <- flushAndReturnCommentsBefore marked
     let lastComment = Comments.last past
@@ -195,9 +195,11 @@ getIndent = do
   Config {..} <- get
   return indent
 
-startsWith :: (Pretty a) => a -> DocState (Doc ann)
+startsWith :: (Pretty a, Show a) => a -> DocState (Doc ann)
 startsWith start = do
   currPos <- getCurrentPosition
+  -- trace "startsWith: " $ traceShow start $ traceShow currPos $ trace "" $ return
+  --   ()
   return $ case currPos of
     Nothing -> error "There's no current position"
     Just (startPos, _) -> pretty $ Marked.Marked
@@ -206,9 +208,10 @@ startsWith start = do
       , Marked.endPosition   = startPos
       }
 
-endsWith :: (Pretty a) => a -> DocState (Doc ann)
+endsWith :: (Pretty a, Show a) => a -> DocState (Doc ann)
 endsWith end = do
   currPos <- getCurrentPosition
+  -- trace "endsWith: " $ traceShow end $ traceShow currPos $ trace "" $ return ()
   return $ case currPos of
     Nothing          -> error "There's no current position"
     Just (_, endPos) -> pretty $ Marked.Marked { Marked.value         = end
@@ -297,25 +300,37 @@ encloseSep l r separator xs = do
   return $ Doc.encloseSep l' r' separator' xs'
 
 record :: DocList ann -> Doc ann
-record = grouped . align . encloseSep open close separator
+record docs = do
+  docs' <- docs
+  case docs' of
+    [] -> "{}"
+    _  -> grouped . align $ encloseSep open close separator docs
  where
-  open      = "{ "
-  close     = flatAlt "\n}" " }"
-  separator = flatAlt ", " ", "
+  open      = join $ startsWith ("{ " :: Text)
+  close     = join (endsWith ("" :: Text)) <> flatAlt "\n}" " }"
+  separator = ", "
 
 list :: DocList ann -> Doc ann
-list = grouped . align . encloseSep open close separator
+list docs = do
+  docs' <- docs
+  case docs' of
+    [] -> "[]"
+    _  -> grouped . align $ encloseSep open close separator docs
  where
-  open      = flatAlt "[ " "["
-  close     = flatAlt "\n]" "]"
-  separator = flatAlt "\n, " ", "
+  open      = join (startsWith ("" :: Text)) <> flatAlt "[ " "["
+  close     = join (endsWith ("" :: Text)) <> flatAlt "\n]" "]"
+  separator = ", "
 
 tupled :: DocList ann -> Doc ann
-tupled = grouped . align . encloseSep open close separator
+tupled docs = do
+  docs' <- docs
+  case docs' of
+    [] -> "()"
+    _  -> grouped . align $ encloseSep open close separator docs
  where
-  open      = flatAlt "( " "("
-  close     = flatAlt "\n)" ")"
-  separator = flatAlt "\n, " ", "
+  open      = join (startsWith ("" :: Text)) <> flatAlt "( " "("
+  close     = join (endsWith ("" :: Text)) <> flatAlt "\n)" ")"
+  separator = ", "
 
 punctuate :: Doc ann -> DocList ann -> DocList ann
 punctuate p xs = do
