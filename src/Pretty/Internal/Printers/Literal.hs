@@ -1,21 +1,20 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Pretty.Internal.Literal where
+module Pretty.Internal.Printers.Literal where
 
-import           Data.Text.Prettyprint.Doc
 import           Text.Printf                    ( printf )
 
 import           Ast.Lit
-import           Pretty.Internal.Util           ( )
+import           Pretty.Internal.Basic
 
 instance Pretty Lit where
-  pretty = \case
+  pretty lit = case lit of
     Int i ->
       let (prefix, i') = fixNegative i in pretty $ prefix ++ printf "%d" i'
     Hex i ->
       let (prefix, i') = fixNegative i in pretty $ prefix ++ printf "0x%x" i'
-    Word    w -> hcat ["0w", pretty w]
-    HexWord w -> hcat ["0wx", pretty w]
+    Word    w -> hcat $ sequence ["0w", pretty w]
+    HexWord w -> hcat $ sequence ["0wx", pretty w]
     Real    n -> let (prefix, n') = fixNegative n in pretty $ prefix ++ show n'
     Char    c -> pretty $ toString c
     String  s -> pretty $ toString s

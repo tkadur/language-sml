@@ -1,11 +1,12 @@
 module Lib where
 
-import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Util
 
 import           Parser
 import           Parser.DebugLevel
 import           Lexer
+import           Pretty
+import qualified Pretty.Comments               as Comments
 
 test :: (Show a) => Parser a -> DebugLevel -> Text -> IO ()
 test parser debugLevel input = do
@@ -29,7 +30,7 @@ testPretty parser debugLevel w input = do
   putStrLn "Lexer: "
   lexTest input
 
-  let Right (_, lexed) = runLexer "test" input
+  let Right (comments, lexed) = runLexer "test" input
   let strm = stream "test" input lexed
 
   putStrLn ""
@@ -37,7 +38,8 @@ testPretty parser debugLevel w input = do
   parseTest parser debugLevel strm
 
   let Right parsed = runParser parser debugLevel "test" strm
+  let config       = Config (Comments.fromList comments)
   putStrLn ""
   putStrLn "Formatted: "
-  putDocW w (pretty parsed)
+  putDocW w (evalState (pretty parsed) config)
   putStrLn ""

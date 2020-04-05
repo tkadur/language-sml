@@ -1,9 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Pretty.Internal.Identifier where
+module Pretty.Internal.Printers.Identifier where
 
 import qualified Data.Text                     as Text
-import           Data.Text.Prettyprint.Doc
 
 import           Ast.Ident.Label                ( Label )
 import qualified Ast.Ident.Label               as Label
@@ -20,16 +19,19 @@ import qualified Ast.Ident.TyVar               as TyVar
 import           Ast.Ident.ValueIdent           ( ValueIdent )
 import qualified Ast.Ident.ValueIdent          as ValueIdent
 import qualified Common.Positive               as Positive
-import           Pretty.Internal.Util
+import           Pretty.Internal.Basic
 
 instance (Pretty ident) => Pretty (Long ident) where
   pretty Long.Long {..} =
-    fillCat $ punctuate dot (map pretty qualifiers ++ [pretty ident])
+    fillCat
+      . punctuate dot
+      . sequence
+      $ (map pretty qualifiers ++ [pretty ident])
 
 instance (Pretty ident) => Pretty (Op ident) where
   pretty = \case
     Op.Ident x -> pretty x
-    Op.Op    x -> fillSep ["op", hang 0 $ pretty x]
+    Op.Op    x -> fillSep . sequence $ ["op", hang 0 $ pretty x]
 
 instance Pretty ValueIdent where
   pretty (ValueIdent.ValueIdent x) = pretty x
@@ -42,7 +44,9 @@ instance Pretty TyCon where
 
 instance Pretty TyVar where
   pretty TyVar.TyVar {..} =
-    hpcat [Text.replicate (Positive.unPositive leadingPrimes) "'", ident]
+    hcat
+      . mapM pretty
+      $ [Text.replicate (Positive.unPositive leadingPrimes) "'", ident]
 
 instance Pretty Label where
   pretty = \case

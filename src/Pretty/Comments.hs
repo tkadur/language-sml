@@ -1,8 +1,10 @@
 module Pretty.Comments
-  ( Comments
-  , between
+  ( Comment
+  , Comments
+  , split
   , fromList
   , toList
+  , unComment
   )
 where
 
@@ -19,7 +21,7 @@ import qualified Lexer
 
 newtype Comments = Comments { unComments :: Set Comment }
 
-newtype Comment = Comment { unComment :: Marked Lexer.Comment }
+newtype Comment = Comment (Marked Lexer.Comment)
 
 instance Eq Comment where
   (==) = (==) `on` extract
@@ -27,24 +29,23 @@ instance Eq Comment where
 instance Ord Comment where
   compare = compare `on` extract
 
-between :: Marked a -> Marked b -> Comments -> Comments
-between lo hi comments =
+split :: Marked a -> Comments -> (Comments, Comments)
+split hi comments =
   comments
     |> unComments
-    -- Remove comments before lo
-    |> (snd . Set.split dummylo)
     -- Remove comments after hi
-    |> (fst . Set.split dummyhi)
-    |> Comments
- where
-  dummylo = Comment (lo { Marked.value = "" })
-  dummyhi = Comment (hi { Marked.value = "" })
+    |> Set.split dummyhi
+    |> bimap Comments Comments
+  where dummyhi = Comment (hi { Marked.value = "" })
 
 fromList :: [Marked Lexer.Comment] -> Comments
 fromList = Comments . Set.fromList . map Comment
 
-toList :: Comments -> [Marked Lexer.Comment]
-toList = map unComment . Set.toList . unComments
+toList :: Comments -> [Comment]
+toList = Set.toList . unComments
+
+unComment :: Comment -> Lexer.Comment
+unComment (Comment m) = Marked.value m
 
 -- For the purpose of range lookups, we only care about the location of comments
 extract :: Comment -> (Position, Position)

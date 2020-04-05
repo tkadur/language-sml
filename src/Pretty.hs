@@ -1,3 +1,9 @@
-module Pretty where
+module Pretty
+  ( Pretty(..)
+  , Config(..)
+  )
+where
 
-import qualified Pretty.Comments               as Comments
+import           Pretty.Internal.Basic          ( Pretty(..)
+                                                , Config(..)
+                                                )
