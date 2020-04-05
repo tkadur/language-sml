@@ -18,9 +18,12 @@ data Typ
     { tycons :: NonEmpty (MLong MTyCon)
     , args :: NonEmpty MTyp
     }
-  -- For convenience, we directly express product/arrow type chains instead of nesting them
   | Tuple (NonEmpty MTyp)
-  | Arrow (NonEmpty MTyp)
+  -- For convenience, we directly express arrow type chains instead of nesting them
+  | Arrow
+    { lhs :: MTyp
+    , rhs :: MTyp
+    }
   deriving (Eq, Show)
 
 data Row

@@ -38,8 +38,7 @@ testPretty parser debugLevel w input = do
   parseTest parser debugLevel strm
 
   let Right parsed = runParser parser debugLevel "test" strm
-  let config       = Config (Comments.fromList comments)
   putStrLn ""
   putStrLn "Formatted: "
-  putDocW w (evalState (pretty parsed) config)
+  putDocW w (evalDocState 2 (Comments.fromList comments) (pretty parsed))
   putStrLn ""

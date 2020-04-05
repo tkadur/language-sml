@@ -20,8 +20,10 @@ import           Common.Position                ( Position )
 import qualified Lexer
 
 newtype Comments = Comments { unComments :: Set Comment }
+  deriving (Show)
 
 newtype Comment = Comment (Marked Lexer.Comment)
+  deriving (Show)
 
 instance Eq Comment where
   (==) = (==) `on` extract

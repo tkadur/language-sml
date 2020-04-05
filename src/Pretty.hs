@@ -1,9 +1,12 @@
 module Pretty
   ( Pretty(..)
-  , Config(..)
+  , evalDocState
+  , module Type
   )
 where
 
 import           Pretty.Internal.Basic          ( Pretty(..)
-                                                , Config(..)
+                                                , evalDocState
                                                 )
+import qualified Pretty.Internal.Printers.Type as Type
+                                                ( )

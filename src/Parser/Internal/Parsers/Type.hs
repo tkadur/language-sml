@@ -50,13 +50,8 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
     [
       -- Arrow type
       -- Flatten chains when possible
-      [ let arrow t1 t2 = Marked.merge
-              t1
-              t2
-              (case Marked.value t2 of
-                Typ.Arrow ts -> Typ.Arrow (t1 `NonEmpty.cons` ts)
-                _ -> Typ.Arrow (t1 :| [t2])
-              )
+      [ let arrow lhs rhs =
+              Marked.merge lhs rhs (Typ.Arrow { Typ.lhs, Typ.rhs })
             separator = token_ Token.Narrowarrow
         in  E.InfixR (arrow <$ separator)
       ]
