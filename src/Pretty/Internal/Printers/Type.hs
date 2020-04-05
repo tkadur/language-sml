@@ -13,17 +13,9 @@ import           Pretty.Internal.Printers.Identifier
 
 instance Pretty Typ where
   pretty = \case
-    TyVar tyvar -> do
-      resetTypPrecAssoc
-      pretty tyvar
-
-    Record rows -> do
-      resetTypPrecAssoc
-      record $ mapM pretty rows
-
-    TyCon tycon -> do
-      resetTypPrecAssoc
-      pretty tycon
+    TyVar  tyvar -> pretty tyvar
+    Record rows  -> record $ mapM pretty rows
+    TyCon  tycon -> pretty tycon
 
     App { tycons, args } ->
       let tyconsPretty = sep $ mapM pretty (NonEmpty.toList tycons)
@@ -55,22 +47,20 @@ instance Pretty Typ where
 
     Arrow { lhs, rhs } -> do
       prevPrecAssoc <- getTypPrecAssoc
+      let newPrecAssoc = PrecAssoc { precedence    = arrowPrec
+                                   , associativity = arrowAssoc
+                                   , direction     = Associativity.Left
+                                   }
 
-      setTypPrecAssoc PrecAssoc { precedence    = arrowPrec
-                                , associativity = arrowAssoc
-                                , direction     = Associativity.Left
-                                }
+      setTypPrecAssoc newPrecAssoc
       lhsDoc <- pretty lhs
       let lhsPretty = return lhsDoc
 
-
-      setTypPrecAssoc PrecAssoc { precedence    = arrowPrec
-                                , associativity = arrowAssoc
-                                , direction     = Associativity.Right
-                                }
+      setTypPrecAssoc newPrecAssoc { direction = Associativity.Right }
       rhsDoc <- pretty rhs
       let rhsPretty = return rhsDoc
 
+      setTypPrecAssoc newPrecAssoc
       [lhsPretty <+> "->", rhsPretty]
         |> sequence
         |> sep

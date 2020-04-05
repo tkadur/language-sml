@@ -2,6 +2,7 @@ module Pretty.Comments
   ( Comment
   , Comments
   , split
+  , last
   , fromList
   , toList
   , unComment
@@ -10,6 +11,7 @@ where
 
 import           Prelude                 hiding ( fromList
                                                 , toList
+                                                , last
                                                 )
 
 import qualified Data.Set                      as Set
@@ -22,7 +24,7 @@ import qualified Lexer
 newtype Comments = Comments { unComments :: Set Comment }
   deriving (Show)
 
-newtype Comment = Comment (Marked Lexer.Comment)
+newtype Comment = Comment { unComment :: Marked Lexer.Comment }
   deriving (Show)
 
 instance Eq Comment where
@@ -40,14 +42,14 @@ split hi comments =
     |> bimap Comments Comments
   where dummyhi = Comment (hi { Marked.value = "" })
 
+last :: Comments -> Maybe Comment
+last = Set.lookupMax . unComments
+
 fromList :: [Marked Lexer.Comment] -> Comments
 fromList = Comments . Set.fromList . map Comment
 
 toList :: Comments -> [Comment]
 toList = Set.toList . unComments
-
-unComment :: Comment -> Lexer.Comment
-unComment (Comment m) = Marked.value m
 
 -- For the purpose of range lookups, we only care about the location of comments
 extract :: Comment -> (Position, Position)

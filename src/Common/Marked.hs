@@ -1,6 +1,7 @@
 module Common.Marked
   ( Marked(..)
   , merge
+  , replace
   )
 where
 
@@ -24,3 +25,6 @@ instance (Ord a) => Ord (Marked a) where
 merge :: Marked a -> Marked b -> c -> Marked c
 merge Marked { startPosition } Marked { endPosition } value =
   Marked { value, startPosition, endPosition }
+
+replace :: Marked a -> b -> Marked b
+replace marked x = marked { value = x }

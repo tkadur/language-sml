@@ -31,7 +31,9 @@ instance (Pretty ident) => Pretty (Long ident) where
 instance (Pretty ident) => Pretty (Op ident) where
   pretty = \case
     Op.Ident x -> pretty x
-    Op.Op    x -> fillSep . sequence $ ["op", hang 0 $ pretty x]
+    Op.Op    x -> do
+      op <- startsWith ("op" :: Text)
+      sep . sequence $ [op, hang 0 $ pretty x]
 
 instance Pretty ValueIdent where
   pretty (ValueIdent.ValueIdent x) = pretty x
@@ -43,10 +45,11 @@ instance Pretty TyCon where
   pretty (TyCon.TyCon x) = pretty x
 
 instance Pretty TyVar where
-  pretty TyVar.TyVar {..} =
-    hcat
-      . mapM pretty
-      $ [Text.replicate (Positive.unPositive leadingPrimes) "'", ident]
+  pretty TyVar.TyVar {..} = do
+    primes <- startsWith
+      (Text.replicate (Positive.unPositive leadingPrimes) "'")
+    identifier <- endsWith ident
+    hcat . sequence $ [primes, identifier]
 
 instance Pretty Label where
   pretty = \case

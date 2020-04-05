@@ -5,6 +5,8 @@ module Pretty.Internal.Basic
   , PrecAssoc(..)
   , evalDocState
   , getIndent
+  , startsWith
+  , endsWith
   , maybeExprParen
   , maybeTypParen
   , getExprPrecAssoc
@@ -25,6 +27,8 @@ module Pretty.Internal.Basic
   , flatAlt
   , hsep
   , vsep
+  , vsepHard
+  , concatWith
   , fillSep
   , sep
   , hcat
@@ -45,14 +49,19 @@ module Pretty.Internal.Basic
   , equals
   , pipe
   , (<+>)
+  , emptyDoc
   )
 where
 
+import           Data.Foldable                  ( foldr1 )
+import qualified Data.Text                     as Text
 import qualified Data.Text.Prettyprint.Doc     as Doc
 
 import           Ast.Associativity              ( Associativity )
 import           Common.Marked                  ( Marked )
 import qualified Common.Marked                 as Marked
+import           Common.Position                ( Position )
+import qualified Common.Position               as Position
 import           Common.Positive                ( Positive )
 import qualified Common.Positive               as Positive
 import           Pretty.Comments                ( Comments )
@@ -62,6 +71,7 @@ data Config
   = Config
     { comments :: Comments
     , indent :: Int
+    , positions :: [(Position, Position)]
     , exprPrecAssoc :: Maybe PrecAssoc
     , typPrecAssoc :: Maybe PrecAssoc
     }
@@ -76,13 +86,28 @@ data PrecAssoc
     }
   deriving (Show)
 
-newtype DocState doc = DocState (State Config doc )
+newtype DocState doc = DocState { unDocState :: State Config doc }
   deriving (Functor, Applicative, Monad, MonadState Config)
 
 evalDocState :: Int -> Comments -> Doc ann -> Doc.Doc ann
-evalDocState indent comments (DocState docState) = evalState
-  docState
-  (Config { comments, indent, exprPrecAssoc = Nothing, typPrecAssoc = Nothing })
+evalDocState indent comments docState = evalState
+  (unDocState $ flushRemainingComments docState)
+  (Config { comments
+          , indent
+          , positions     = []
+          , exprPrecAssoc = Nothing
+          , typPrecAssoc  = Nothing
+          }
+  )
+ where
+  -- TODO(tkadur): This acts weird if the last pretty-printed thing isn't marked
+  -- (which it usually isn't). Should find a way to fix this
+  flushRemainingComments :: Doc ann -> Doc ann
+  flushRemainingComments doc =
+    let remaining = do
+          Config { comments = remainingComments } <- get
+          pretty remainingComments
+    in  sep $ sequence [doc, remaining]
 
 type Doc ann = DocState (Doc.Doc ann)
 
@@ -99,44 +124,111 @@ instance Semigroup (Doc ann) where
     d2 <- doc2
     return (d1 <> d2)
 
+instance Monoid (Doc ann) where
+  mempty = return mempty
+
 class Pretty a where
   pretty :: a -> Doc ann
 
-instance (Pretty a, Show a) => Pretty (Marked a) where
+instance (Pretty a) => Pretty (Marked a) where
   pretty marked = do
-    cfg@Config {..} <- get
-    let (past, comments') = Comments.split marked comments
-    let pastComments      = Comments.toList past
-    put (cfg { comments = comments' })
+    (past, pastPretty) <- flushAndReturnCommentsBefore marked
+    let lastComment = Comments.last past
+    let value       = Marked.value marked
 
-    let value = Marked.value marked
-    case pastComments of
-      [] -> pretty value
-      _ ->
-        let pastPretty = sep $ mapM pretty (Comments.toList past)
-        in  sep $ sequence [pastPretty, pretty (Marked.value marked)]
+    setCurrentPosition (Marked.startPosition marked, Marked.endPosition marked)
+    res <- case lastComment of
+      Nothing -> pretty value
+      Just comment ->
+        -- Try to preserve line breaks between comments and other things
+        let separator =
+                if Position.line (Marked.endPosition $ Comments.unComment comment)
+                     < Position.line (Marked.startPosition marked)
+                  then vsep
+                  else sep
+        in  separator $ sequence [pastPretty, pretty value]
+    resetCurrentPosition
+    return res
+
+instance Pretty Comments where
+  -- Because comments are marked, pretty-printing the last one will
+  -- automatically also pretty-print comments before it
+  pretty comments = maybe emptyDoc pretty (Comments.last comments)
+  -- pretty = sep . mapM pretty . Comments.toList
 
 instance Pretty Comments.Comment where
-  pretty comment =
-    cat $ sequence ["(*", pretty $ Comments.unComment comment, "*)"]
+  pretty comment = do
+    -- Because comments are really just @Marked Text@ and we need to pretty-print
+    -- comments differently than just plain text, we need to do this manually
+    -- instead of deferring to the @Pretty (Marked a)@ instance.
+    let markedComment = Comments.unComment comment
+
+    setCurrentPosition
+      (Marked.startPosition markedComment, Marked.endPosition markedComment)
+    let removeBlankLines = dropWhile (== "")
+    let body =
+          markedComment
+            |> Marked.value
+            |> Text.splitOn "\n"
+            -- Remove leading blank lines
+            |> removeBlankLines
+            -- Remove trailing blank lines
+            |> reverse
+            |> removeBlankLines
+            |> reverse
+            -- Pretty print each line, forcing newlines between them
+            |> mapM pretty
+            |> vsepHard
+    res <- cat $ sequence ["(*", body, "*)"]
+    resetCurrentPosition
+    return res
+
+flushAndReturnCommentsBefore :: Marked a -> DocState (Comments, Doc ann)
+flushAndReturnCommentsBefore marked = do
+  cfg@Config {..} <- get
+  let (past, comments') = Comments.split marked comments
+  put (cfg { comments = comments' })
+  return (past, pretty past)
 
 getIndent :: DocState Int
 getIndent = do
   Config {..} <- get
   return indent
 
+startsWith :: (Pretty a) => a -> DocState (Doc ann)
+startsWith start = do
+  currPos <- getCurrentPosition
+  return $ case currPos of
+    Nothing -> error "There's no current position"
+    Just (startPos, _) -> pretty $ Marked.Marked
+      { Marked.value         = start
+      , Marked.startPosition = startPos
+      , Marked.endPosition   = startPos
+      }
+
+endsWith :: (Pretty a) => a -> DocState (Doc ann)
+endsWith end = do
+  currPos <- getCurrentPosition
+  return $ case currPos of
+    Nothing          -> error "There's no current position"
+    Just (_, endPos) -> pretty $ Marked.Marked { Marked.value         = end
+                                               , Marked.startPosition = endPos
+                                               , Marked.endPosition   = endPos
+                                               }
+
 -- | @maybeExprParen prevPrecAssoc doc = doc'@
 --   where @doc'@ might be parenthesized based on
 --   @prevPrecAssoc@ and the current value of @exprPrecAssoc@.
 maybeExprParen :: Maybe PrecAssoc -> Doc ann -> Doc ann
-maybeExprParen = maybeParen getExprPrecAssoc
+maybeExprParen prevPrecAssoc doc =
+  maybeParen getExprPrecAssoc prevPrecAssoc doc << resetExprPrecAssoc
 
 -- | @maybeTypParen prevPrecAssoc doc = doc'@
 --   where @doc'@ might be parenthesized based on
 --   @prevPrecAssoc@ and the current value of @typPrecAssoc@.
 maybeTypParen :: Maybe PrecAssoc -> Doc ann -> Doc ann
-maybeTypParen = maybeParen getTypPrecAssoc
-
+maybeTypParen prevPrecAssoc doc =
+  maybeParen getTypPrecAssoc prevPrecAssoc doc << resetTypPrecAssoc
 
 maybeParen :: DocState (Maybe PrecAssoc)
            -> Maybe PrecAssoc
@@ -166,9 +258,7 @@ maybeParen getPrecAssoc prevPrecAssoc doc = do
           _ -> parens doc
 
 getExprPrecAssoc :: DocState (Maybe PrecAssoc)
-getExprPrecAssoc = do
-  Config {..} <- get
-  return exprPrecAssoc
+getExprPrecAssoc = exprPrecAssoc <$> get
 
 setExprPrecAssoc :: PrecAssoc -> DocState ()
 setExprPrecAssoc precAssoc =
@@ -178,9 +268,7 @@ resetExprPrecAssoc :: DocState ()
 resetExprPrecAssoc = modify $ \cfg -> cfg { exprPrecAssoc = Nothing }
 
 getTypPrecAssoc :: DocState (Maybe PrecAssoc)
-getTypPrecAssoc = do
-  Config {..} <- get
-  return typPrecAssoc
+getTypPrecAssoc = typPrecAssoc <$> get
 
 setTypPrecAssoc :: PrecAssoc -> DocState ()
 setTypPrecAssoc precAssoc =
@@ -188,6 +276,17 @@ setTypPrecAssoc precAssoc =
 
 resetTypPrecAssoc :: DocState ()
 resetTypPrecAssoc = modify $ \cfg -> cfg { typPrecAssoc = Nothing }
+
+setCurrentPosition :: (Position, Position) -> DocState ()
+setCurrentPosition position =
+  modify $ \cfg@Config {..} -> cfg { positions = position : positions }
+
+getCurrentPosition :: DocState (Maybe (Position, Position))
+getCurrentPosition = head <<$>> nonEmpty <$> positions <$> get
+
+resetCurrentPosition :: DocState ()
+resetCurrentPosition =
+  modify $ \cfg@Config {..} -> cfg { positions = drop 1 positions }
 
 encloseSep :: Doc ann -> Doc ann -> Doc ann -> DocList ann -> Doc ann
 encloseSep l r separator xs = do
@@ -259,6 +358,17 @@ hsep = adaptConcat Doc.hsep
 vsep :: DocList ann -> Doc ann
 vsep = adaptConcat Doc.vsep
 
+vsepHard :: DocList ann -> Doc ann
+vsepHard = concatWith (\doc1 doc2 -> doc1 <> hardline <> doc2)
+
+concatWith :: (Foldable t, Functor t)
+           => (Doc ann -> Doc ann -> Doc ann)
+           -> DocOf t ann
+           -> Doc ann
+concatWith f docs = do
+  docs' <- docs
+  if null docs' then emptyDoc else foldr1 f (return <$> docs')
+
 fillSep :: DocList ann -> Doc ann
 fillSep = adaptConcat Doc.fillSep
 
@@ -318,6 +428,9 @@ doc1 <+> doc2 = do
   doc1' <- doc1
   doc2' <- doc2
   return (doc1' Doc.<+> doc2')
+
+emptyDoc :: Doc ann
+emptyDoc = mempty
 
 instance Pretty Positive where
   pretty = return . Doc.pretty . (Positive.unPositive @Integer)
