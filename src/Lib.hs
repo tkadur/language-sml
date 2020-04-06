@@ -25,24 +25,28 @@ withBasis :: (FixityTable -> Parser a) -> Parser a
 withBasis parser = parser basisFixityTable
 
 testPretty :: (Show a, Pretty a)
-           => Parser a
+           => Bool
+           -> Parser a
            -> DebugLevel
            -> Int
            -> Text
            -> IO ()
-testPretty parser debugLevel w input = do
-  putStrLn "Lexer: "
-  lexTest input
+testPretty verbose parser debugLevel w input = do
+  when verbose $ do
+    putStrLn "Lexer: "
+    lexTest input
 
   let Right (comments, lexed) = runLexer "test" input
   let strm = stream "test" input lexed
 
-  putStrLn ""
-  putStrLn "Parser: "
-  parseTest parser debugLevel strm
+  when verbose $ do
+    putStrLn ""
+    putStrLn "Parser: "
+    parseTest parser debugLevel strm
 
   let Right parsed = runParser parser debugLevel "test" strm
-  putStrLn ""
-  putStrLn "Formatted: "
+  when verbose $ do
+    putStrLn ""
+    putStrLn "Formatted: "
   putDocW w (evalDocState 2 (Comments.fromList comments) (pretty parsed))
   putStrLn ""

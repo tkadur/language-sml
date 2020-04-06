@@ -40,6 +40,7 @@ module Pretty.Internal.Basic
   , braces
   , line
   , line'
+  , softlineNest
   , softline
   , softline'
   , hardline
@@ -331,11 +332,15 @@ punctuate p docs = do
   p' <- p
   Doc.punctuate p' <$> docs
 
-nest :: Int -> Doc ann -> Doc ann
-nest i = adaptFunction (Doc.nest i)
+nest :: Doc ann -> Doc ann
+nest doc = do
+  i <- getIndent
+  adaptFunction (Doc.nest i) doc
 
-hang :: Int -> Doc ann -> Doc ann
-hang i = adaptFunction (Doc.hang i)
+hang :: Doc ann -> Doc ann
+hang doc = do
+  i <- getIndent
+  adaptFunction (Doc.hang i) doc
 
 align :: Doc ann -> Doc ann
 align = adaptFunction Doc.align
@@ -404,6 +409,11 @@ line = adapt Doc.line
 
 line' :: Doc ann
 line' = adapt Doc.line'
+
+-- | @softlineNest@ behaves like @space@ if the resulting output fits the page,
+--   otherwise like @indent line@
+softlineNest :: Doc ann
+softlineNest = grouped $ flatAlt (nest line) space
 
 softline :: Doc ann
 softline = adapt Doc.softline

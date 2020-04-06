@@ -33,7 +33,7 @@ instance (Pretty ident) => Pretty (Op ident) where
     Op.Ident x -> pretty x
     Op.Op    x -> do
       let op = startsWith ("op" :: Text)
-      sep . sequence $ [op, hang 0 $ pretty x]
+      sep . sequence $ [op, align $ pretty x]
 
 instance Pretty ValueIdent where
   pretty (ValueIdent.ValueIdent x) = pretty x
