@@ -143,16 +143,17 @@ instance (Pretty a, Show a) => Pretty (Marked a) where
         -- Try to preserve line breaks between comments and other things
         if Position.line (Marked.endPosition $ Comments.unComment comment)
              < Position.line (Marked.startPosition marked)
-          then vsep $ sequence [return pastPretty, pretty value]
+          then align (return pastPretty <> hardline <> pretty value)
           else sep $ sequence [return pastPretty, pretty value]
     resetCurrentPosition
     return res
+
 
 instance Pretty Comments where
   -- Because comments are marked, pretty-printing the last one will
   -- automatically also pretty-print comments before it
   -- pretty comments = maybe emptyDoc pretty (Comments.last comments)
-  pretty comments = sep . mapM pretty . Comments.toList $ comments
+  pretty = sep . mapM pretty . Comments.toList
 
 instance Pretty Comments.Comment where
   pretty comment = do
@@ -163,6 +164,7 @@ instance Pretty Comments.Comment where
 
     setCurrentPosition
       (Marked.startPosition markedComment, Marked.endPosition markedComment)
+
     let removeBlankLines = dropWhile (== "")
     let body =
           markedComment
@@ -177,7 +179,7 @@ instance Pretty Comments.Comment where
             -- Pretty print each line, forcing newlines between them
             |> mapM pretty
             |> vsepHard
-    res <- cat $ sequence ["(*", body, "*)"]
+    res <- hcat $ sequence ["(*", body, "*)"]
     resetCurrentPosition
     return res
 
@@ -289,7 +291,7 @@ resetCurrentPosition =
   modify $ \cfg@Config {..} -> cfg { positions = drop 1 positions }
 
 encloseSep :: Doc ann -> Doc ann -> Doc ann -> DocList ann -> Doc ann
-encloseSep l r separator docs = l <> cat (punctuate separator docs) <> r
+encloseSep l r separator docs = l <> hcat (punctuate separator docs) <> r
 
 record :: DocList ann -> Doc ann
 record docs = do
@@ -300,7 +302,7 @@ record docs = do
  where
   open      = startsWith ("{ " :: Text)
   close     = endsWith ("" :: Text) <> flatAlt "\n}" " }"
-  separator = ", "
+  separator = flatAlt "\n, " ", "
 
 list :: DocList ann -> Doc ann
 list docs = do
@@ -311,7 +313,7 @@ list docs = do
  where
   open      = startsWith ("" :: Text) <> flatAlt "[ " "["
   close     = endsWith ("" :: Text) <> flatAlt "\n]" "]"
-  separator = ", "
+  separator = flatAlt "\n, " ", "
 
 tupled :: DocList ann -> Doc ann
 tupled docs = do
@@ -322,12 +324,12 @@ tupled docs = do
  where
   open      = startsWith ("" :: Text) <> flatAlt "( " "("
   close     = endsWith ("" :: Text) <> flatAlt "\n)" ")"
-  separator = ", "
+  separator = flatAlt "\n, " ", "
 
 punctuate :: Doc ann -> DocList ann -> DocList ann
-punctuate p xs = do
+punctuate p docs = do
   p' <- p
-  Doc.punctuate p' <$> xs
+  Doc.punctuate p' <$> docs
 
 nest :: Int -> Doc ann -> Doc ann
 nest i = adaptFunction (Doc.nest i)

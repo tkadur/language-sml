@@ -3,6 +3,7 @@ module Lib where
 import           Data.Text.Prettyprint.Doc.Util
 
 import           Parser
+import           Parser.Internal.FixityTable
 import           Parser.DebugLevel
 import           Lexer
 import           Pretty
@@ -19,6 +20,9 @@ test parser debugLevel input = do
   putStrLn ""
   putStrLn "Parser: "
   parseTest parser debugLevel strm
+
+withBasis :: (FixityTable -> Parser a) -> Parser a
+withBasis parser = parser basisFixityTable
 
 testPretty :: (Show a, Pretty a)
            => Parser a
