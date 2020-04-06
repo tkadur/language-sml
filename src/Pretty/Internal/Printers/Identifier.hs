@@ -32,7 +32,7 @@ instance (Pretty ident) => Pretty (Op ident) where
   pretty = \case
     Op.Ident x -> pretty x
     Op.Op    x -> do
-      op <- startsWith ("op" :: Text)
+      let op = startsWith ("op" :: Text)
       sep . sequence $ [op, hang 0 $ pretty x]
 
 instance Pretty ValueIdent where
@@ -46,9 +46,9 @@ instance Pretty TyCon where
 
 instance Pretty TyVar where
   pretty TyVar.TyVar {..} = do
-    primes <- startsWith
-      (Text.replicate (Positive.unPositive leadingPrimes) "'")
-    identifier <- endsWith ident
+    let primes =
+          startsWith (Text.replicate (Positive.unPositive leadingPrimes) "'")
+    let identifier = endsWith ident
     hcat . sequence $ [primes, identifier]
 
 instance Pretty Label where

@@ -141,20 +141,18 @@ instance (Pretty a, Show a) => Pretty (Marked a) where
       Nothing -> pretty value
       Just comment ->
         -- Try to preserve line breaks between comments and other things
-        let separator =
-                if Position.line (Marked.endPosition $ Comments.unComment comment)
-                     < Position.line (Marked.startPosition marked)
-                  then vsep
-                  else sep
-        in  separator $ sequence [pastPretty, pretty value]
+        if Position.line (Marked.endPosition $ Comments.unComment comment)
+             < Position.line (Marked.startPosition marked)
+          then vsep $ sequence [return pastPretty, pretty value]
+          else sep $ sequence [return pastPretty, pretty value]
     resetCurrentPosition
     return res
 
 instance Pretty Comments where
   -- Because comments are marked, pretty-printing the last one will
   -- automatically also pretty-print comments before it
-  pretty comments = maybe emptyDoc pretty (Comments.last comments)
-  -- pretty = sep . mapM pretty . Comments.toList
+  -- pretty comments = maybe emptyDoc pretty (Comments.last comments)
+  pretty comments = sep . mapM pretty . Comments.toList $ comments
 
 instance Pretty Comments.Comment where
   pretty comment = do
@@ -183,24 +181,23 @@ instance Pretty Comments.Comment where
     resetCurrentPosition
     return res
 
-flushAndReturnCommentsBefore :: Marked a -> DocState (Comments, Doc ann)
+flushAndReturnCommentsBefore :: Marked a -> DocState (Comments, Doc.Doc ann)
 flushAndReturnCommentsBefore marked = do
   cfg@Config {..} <- get
   let (past, comments') = Comments.split marked comments
   put (cfg { comments = comments' })
-  return (past, pretty past)
+  prettyPast <- pretty past
+  return (past, prettyPast)
 
 getIndent :: DocState Int
 getIndent = do
   Config {..} <- get
   return indent
 
-startsWith :: (Pretty a, Show a) => a -> DocState (Doc ann)
+startsWith :: (Pretty a, Show a) => a -> Doc ann
 startsWith start = do
   currPos <- getCurrentPosition
-  -- trace "startsWith: " $ traceShow start $ traceShow currPos $ trace "" $ return
-  --   ()
-  return $ case currPos of
+  case currPos of
     Nothing -> error "There's no current position"
     Just (startPos, _) -> pretty $ Marked.Marked
       { Marked.value         = start
@@ -208,11 +205,11 @@ startsWith start = do
       , Marked.endPosition   = startPos
       }
 
-endsWith :: (Pretty a, Show a) => a -> DocState (Doc ann)
+endsWith :: (Pretty a, Show a) => a -> Doc ann
 endsWith end = do
   currPos <- getCurrentPosition
   -- trace "endsWith: " $ traceShow end $ traceShow currPos $ trace "" $ return ()
-  return $ case currPos of
+  case currPos of
     Nothing          -> error "There's no current position"
     Just (_, endPos) -> pretty $ Marked.Marked { Marked.value         = end
                                                , Marked.startPosition = endPos
@@ -292,22 +289,17 @@ resetCurrentPosition =
   modify $ \cfg@Config {..} -> cfg { positions = drop 1 positions }
 
 encloseSep :: Doc ann -> Doc ann -> Doc ann -> DocList ann -> Doc ann
-encloseSep l r separator xs = do
-  l'         <- l
-  r'         <- r
-  separator' <- separator
-  xs'        <- xs
-  return $ Doc.encloseSep l' r' separator' xs'
+encloseSep l r separator docs = l <> cat (punctuate separator docs) <> r
 
 record :: DocList ann -> Doc ann
 record docs = do
   docs' <- docs
   case docs' of
-    [] -> "{}"
-    _  -> grouped . align $ encloseSep open close separator docs
+    [] -> startsWith ("{" :: Text) <> endsWith ("}" :: Text)
+    _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = join $ startsWith ("{ " :: Text)
-  close     = join (endsWith ("" :: Text)) <> flatAlt "\n}" " }"
+  open      = startsWith ("{ " :: Text)
+  close     = endsWith ("" :: Text) <> flatAlt "\n}" " }"
   separator = ", "
 
 list :: DocList ann -> Doc ann
@@ -315,10 +307,10 @@ list docs = do
   docs' <- docs
   case docs' of
     [] -> "[]"
-    _  -> grouped . align $ encloseSep open close separator docs
+    _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = join (startsWith ("" :: Text)) <> flatAlt "[ " "["
-  close     = join (endsWith ("" :: Text)) <> flatAlt "\n]" "]"
+  open      = startsWith ("" :: Text) <> flatAlt "[ " "["
+  close     = endsWith ("" :: Text) <> flatAlt "\n]" "]"
   separator = ", "
 
 tupled :: DocList ann -> Doc ann
@@ -326,10 +318,10 @@ tupled docs = do
   docs' <- docs
   case docs' of
     [] -> "()"
-    _  -> grouped . align $ encloseSep open close separator docs
+    _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = join (startsWith ("" :: Text)) <> flatAlt "( " "("
-  close     = join (endsWith ("" :: Text)) <> flatAlt "\n)" ")"
+  open      = startsWith ("" :: Text) <> flatAlt "( " "("
+  close     = endsWith ("" :: Text) <> flatAlt "\n)" ")"
   separator = ", "
 
 punctuate :: Doc ann -> DocList ann -> DocList ann
