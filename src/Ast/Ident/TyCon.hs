@@ -1,5 +1,3 @@
-{-# LANGUAGE EmptyDataDeriving #-}
-
 module Ast.Ident.TyCon where
 
 import           Ast.Ident.Common               ( Ident )
