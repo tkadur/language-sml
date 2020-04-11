@@ -28,8 +28,8 @@ data Expr
     -- For convenience, we directly express application chains instead of
     -- using nested @App@s.
   | App
-    { function :: MExpr
-    , args :: NonEmpty MExpr
+    { lhs :: MExpr
+    , rhs :: MExpr
     }
   | InfixApp
     { lhs :: MExpr

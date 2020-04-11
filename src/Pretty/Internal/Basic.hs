@@ -15,19 +15,23 @@ module Pretty.Internal.Basic
   , getTypPrecAssoc
   , setTypPrecAssoc
   , resetTypPrecAssoc
-  , encloseSep
   , record
   , list
   , tupled
+  , parenSequenced
+  , sequenced
   , punctuate
+  , punctuate'
   , nest
   , hang
+  , hangBy
+  , indent
   , align
   , grouped
   , flatAlt
   , hsep
   , vsep
-  , vsepHard
+  , vhard
   , concatWith
   , fillSep
   , sep
@@ -40,7 +44,8 @@ module Pretty.Internal.Basic
   , braces
   , line
   , line'
-  , softlineNest
+  -- , lineNest
+  -- , softlineNest
   , softline
   , softline'
   , hardline
@@ -71,7 +76,7 @@ import qualified Pretty.Comments               as Comments
 data Config
   = Config
     { comments :: Comments
-    , indent :: Int
+    , indentation :: Int
     , positions :: [(Position, Position)]
     , exprPrecAssoc :: Maybe PrecAssoc
     , typPrecAssoc :: Maybe PrecAssoc
@@ -91,10 +96,10 @@ newtype DocState doc = DocState { unDocState :: State Config doc }
   deriving (Functor, Applicative, Monad, MonadState Config)
 
 evalDocState :: Int -> Comments -> Doc ann -> Doc.Doc ann
-evalDocState indent comments docState = evalState
+evalDocState indentation comments docState = evalState
   (unDocState $ flushRemainingComments docState)
   (Config { comments
-          , indent
+          , indentation
           , positions     = []
           , exprPrecAssoc = Nothing
           , typPrecAssoc  = Nothing
@@ -179,7 +184,7 @@ instance Pretty Comments.Comment where
             |> reverse
             -- Pretty print each line, forcing newlines between them
             |> mapM pretty
-            |> vsepHard
+            |> vhard
     res <- hcat $ sequence ["(*", body, "*)"]
     resetCurrentPosition
     return res
@@ -195,7 +200,7 @@ flushAndReturnCommentsBefore marked = do
 getIndent :: DocState Int
 getIndent = do
   Config {..} <- get
-  return indent
+  return indentation
 
 startsWith :: (Pretty a, Show a) => a -> Doc ann
 startsWith start = do
@@ -327,10 +332,44 @@ tupled docs = do
   close     = endsWith ("" :: Text) <> flatAlt "\n)" ")"
   separator = flatAlt "\n, " ", "
 
+parenSequenced :: DocList ann -> Doc ann
+parenSequenced docs = do
+  docs' <- docs
+  case docs' of
+    [] -> error "empty sequences aren't allowed"
+    _  -> grouped . align $ encloseSep open close separator (return docs')
+ where
+  open      = startsWith ("" :: Text) <> flatAlt "( " "("
+  close     = endsWith ("" :: Text) <> flatAlt "\n)" ")"
+  separator = flatAlt "\n; " "; "
+
+sequenced :: DocList ann -> Doc ann
+sequenced docs = do
+  docs' <- docs
+  case docs' of
+    [] -> error "empty sequences aren't allowed"
+    _  -> grouped . align $ hcat (punctuate separator $ return docs')
+  where separator = flatAlt ";\n" "; "
+
 punctuate :: Doc ann -> DocList ann -> DocList ann
 punctuate p docs = do
   p' <- p
   Doc.punctuate p' <$> docs
+
+-- | Like @punctuate@, but attaches the punctuation in front of elements
+--   instead of after them
+punctuate' :: Doc ann -> DocList ann -> DocList ann
+punctuate' p docs = do
+  p'    <- p
+  docs' <- docs
+  return (go p' docs')
+ where
+  go p' docs' = case docs' of
+    [] -> []
+    [d'] -> [d']
+    d1' : d2' : ds' -> d1' : (p' <> d2') : go p' ds'
+  -- Doc.punctuate p' <$> docs
+
 
 nest :: Doc ann -> Doc ann
 nest doc = do
@@ -341,6 +380,14 @@ hang :: Doc ann -> Doc ann
 hang doc = do
   i <- getIndent
   adaptFunction (Doc.hang i) doc
+
+hangBy :: Int -> Doc ann -> Doc ann
+hangBy i = adaptFunction (Doc.hang i)
+
+indent :: Doc ann -> Doc ann
+indent doc = do
+  i <- getIndent
+  adaptFunction (Doc.indent i) doc
 
 align :: Doc ann -> Doc ann
 align = adaptFunction Doc.align
@@ -372,8 +419,8 @@ hsep = adaptConcat Doc.hsep
 vsep :: DocList ann -> Doc ann
 vsep = adaptConcat Doc.vsep
 
-vsepHard :: DocList ann -> Doc ann
-vsepHard = concatWith (\doc1 doc2 -> doc1 <> hardline <> doc2)
+vhard :: DocList ann -> Doc ann
+vhard = concatWith (\doc1 doc2 -> doc1 <> hardline <> doc2)
 
 concatWith :: (Foldable t, Functor t)
            => (Doc ann -> Doc ann -> Doc ann)
@@ -410,8 +457,11 @@ line = adapt Doc.line
 line' :: Doc ann
 line' = adapt Doc.line'
 
+lineNest :: Doc ann
+lineNest = flatAlt (nest line) space
+
 -- | @softlineNest@ behaves like @space@ if the resulting output fits the page,
---   otherwise like @indent line@
+--   otherwise like @indentation line@
 softlineNest :: Doc ann
 softlineNest = grouped $ flatAlt (nest line) space
 

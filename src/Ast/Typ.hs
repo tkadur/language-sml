@@ -19,7 +19,6 @@ data Typ
     , args :: NonEmpty MTyp
     }
   | Tuple (NonEmpty MTyp)
-  -- For convenience, we directly express arrow type chains instead of nesting them
   | Arrow
     { lhs :: MTyp
     , rhs :: MTyp

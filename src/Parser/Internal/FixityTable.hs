@@ -144,34 +144,29 @@ removeOperatorFromTable ident =
 
 basisFixityTable :: FixityTable
 basisFixityTable = FixityTable
-  { table = [ infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
-            , []
-            , []
-            , infixExprOperator 3 Associativity.Left <$> (basisOperators !! 3)
-            , infixExprOperator 4 Associativity.Left <$> (basisOperators !! 4)
-            , infixExprOperator 5 Associativity.Right <$> (basisOperators !! 5)
-            , infixExprOperator 6 Associativity.Left <$> (basisOperators !! 6)
-            , infixExprOperator 7 Associativity.Left <$> (basisOperators !! 7)
-            , []
-            , []
+  { table     =
+    [ infixExprOperator 0 Associativity.Left <$> (basisOperators !! 0)
+    , []
+    , []
+    , infixExprOperator 3 Associativity.Left <$> (basisOperators !! 3)
+    , infixExprOperator 4 Associativity.Left <$> (basisOperators !! 4)
+    , infixExprOperator 5 Associativity.Right <$> (basisOperators !! 5)
+    , infixExprOperator 6 Associativity.Left <$> (basisOperators !! 6)
+    , infixExprOperator 7 Associativity.Left <$> (basisOperators !! 7)
+    , []
+    , []
               -- Application
-            , [ let separator = nothing
-                    -- Flatten application chains when possible
-                    expr function arg = Marked.merge
-                      function
-                      arg
-                      (case Marked.value function of
-                        fn@Expr.App { Expr.args } ->
-                          fn { Expr.args = args <> (arg :| []) }
-                        _ -> Expr.App { Expr.function, Expr.args = arg :| [] }
-                      )
-                in  ( ValueIdent.ValueIdent ""
-                    -- application cannot appear in patterns
-                    , E.InfixL never
-                    , E.InfixL (expr <$ separator)
-                    )
-              ]
-            ]
+    , [ let separator = nothing
+            -- Flatten application chains when possible
+            expr lhs rhs =
+              Marked.merge lhs rhs (Expr.App { Expr.lhs, Expr.rhs })
+        in  ( ValueIdent.ValueIdent ""
+            -- application cannot appear in patterns
+            , E.InfixL never
+            , E.InfixL (expr <$ separator)
+            )
+      ]
+    ]
   , operators = HashSet.fromList
                   $ map ValueIdent.ValueIdent (concat basisOperators)
   }

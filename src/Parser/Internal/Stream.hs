@@ -98,7 +98,7 @@ instance M.Stream Stream where
                            , pstateLinePrefix
                            }
 
-    tokens'      = Vector.drop (offset - 1) tokens
+    tokens'      = Vector.drop offset tokens
     pstateInput' = Stream { input, tokens = tokens' }
     pstateSourcePos' =
       case (tokens !? (Vector.length tokens - 1), tokens' !? 0) of

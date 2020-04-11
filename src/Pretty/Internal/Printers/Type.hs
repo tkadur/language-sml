@@ -7,7 +7,6 @@ import qualified Data.List.NonEmpty            as NonEmpty
 import           Ast.Associativity
 import qualified Ast.Associativity             as Associativity
 import           Ast.Typ
-import qualified Common.Marked                 as Marked
 import           Pretty.Internal.Basic
 import           Pretty.Internal.Printers.Identifier
                                                 ( )
@@ -15,7 +14,7 @@ import           Pretty.Internal.Printers.Identifier
 instance Pretty Typ where
   pretty = \case
     TyVar  tyvar -> pretty tyvar
-    Record rows  -> record $ mapM pretty rows
+    Record rows  -> record (mapM pretty rows)
     TyCon  tycon -> pretty tycon
 
     App { tycons, args } ->
@@ -35,15 +34,18 @@ instance Pretty Typ where
 
     Tuple typs -> do
       prevPrecAssoc <- getTypPrecAssoc
-      setTypPrecAssoc PrecAssoc { precedence    = tuplePrec
-                                , associativity = tupleAssoc
-                                , direction     = Associativity.Left
-                                }
+      let newPrecAssoc = PrecAssoc { precedence    = tuplePrec
+                                   , associativity = tupleAssoc
+                                   , direction     = Associativity.Right
+                                   }
+      setTypPrecAssoc newPrecAssoc
+
       typs
         |> NonEmpty.toList
         |> mapM pretty
-        |> punctuate " * "
-        |> cat
+        |> punctuate " *"
+        |> sep
+        |> (setTypPrecAssoc newPrecAssoc >>)
         |> maybeTypParen prevPrecAssoc
 
     Arrow { lhs, rhs } -> do

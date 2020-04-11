@@ -18,9 +18,9 @@ instance Pretty Pat where
     Wild         -> "_"
     Lit    lit   -> pretty lit
     Ident  ident -> pretty ident
-    Record rows  -> record $ mapM pretty rows
-    Tuple  pats  -> tupled $ mapM pretty pats
-    List   pats  -> list $ mapM pretty pats
+    Record rows  -> record $ mapM (grouped . pretty) rows
+    Tuple  pats  -> tupled $ mapM (grouped . pretty) pats
+    List   pats  -> list $ mapM (grouped . pretty) pats
 
     Constructed { constructor, arg } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -30,7 +30,7 @@ instance Pretty Pat where
                                  }
       maybeExprParen
         prevPrecAssoc
-        (pretty constructor <> softlineNest <> align (pretty arg))
+        (pretty constructor <> line <> hang (grouped $ pretty arg))
 
     InfixConstructed { lhs, op, precedence, associativity, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -40,17 +40,18 @@ instance Pretty Pat where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- pretty lhs
+      lhsDoc <- grouped (pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- pretty rhs
+      rhsDoc <- grouped (pretty rhs)
       let rhsPretty = return rhsDoc
 
       setTypPrecAssoc newPrecAssoc
-      [lhsPretty <+> pretty op, rhsPretty]
+      [lhsPretty, space, pretty op, line, rhsPretty]
         |> sequence
-        |> sep
+        |> hcat
+        |> align
         |> maybeTypParen prevPrecAssoc
 
     Annot { pat, typ } -> do
@@ -59,7 +60,9 @@ instance Pretty Pat where
                                  , associativity = annotAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen prevPrecAssoc (pretty pat <+> colon <+> align (pretty typ))
+      maybeExprParen
+        prevPrecAssoc
+        (grouped (pretty pat) <+> colon <+> align (grouped $ pretty typ))
 
     As { ident, annot, as } -> undefined
 

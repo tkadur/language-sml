@@ -11,6 +11,7 @@ import           Ast.Expr                       ( MExpr )
 import qualified Ast.Expr                      as Expr
 import qualified Common.Marked                 as Marked
 import           Parser.Internal.Basic
+import           Parser.Internal.Combinators    ( sepBy2 )
 import           Parser.Internal.FixityTable    ( FixityTable )
 import qualified Parser.Internal.FixityTable   as FixityTable
 import {-# SOURCE #-} Parser.Internal.Parsers.Declaration
@@ -124,7 +125,7 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
 
   -- @try@ to prevent conflict with parens
   sqnc = marked . try $ Expr.Sequence <$> parenthesized
-    (expression fixityTable `sepBy1` token_ Token.Semicolon)
+    (expression fixityTable `sepBy2` token_ Token.Semicolon)
 
   letInEnd = marked $ do
     token_ Token.Let

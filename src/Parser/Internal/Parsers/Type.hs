@@ -31,9 +31,17 @@ import qualified Parser.Internal.Token         as Token
 typ :: (MonadParser parser) => parser MTyp
 typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
  where
-  -- Handle left-recursive tycon application
+  -- Handle product types
   typ' = do
-    arg         <- typ''
+    typs <- typ'' `sepBy1` token_ (Token.Symbolic "*")
+    return $ case typs of
+      t :| [] -> t
+      _ ->
+        Marked.merge (NonEmpty.head typs) (NonEmpty.last typs) (Typ.Tuple typs)
+
+  -- Handle left-recursive tycon application
+  typ'' = do
+    arg         <- typ'''
     -- @try@ to prevent trying to parse * as tycon
     maybeTycons <- many (long $ try typeConstructor)
     return $ case nonEmpty maybeTycons of
@@ -44,30 +52,15 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
         (Typ.App { Typ.args = arg :| [], Typ.tycons })
 
   -- Non-left recursive cases
-  typ''         = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
+  typ'''        = choice [multiArgApp, parens, unappliedTycon, tyvar, record]
 
   operatorTable = reverse
     [
       -- Arrow type
-      -- Flatten chains when possible
       [ let arrow lhs rhs =
               Marked.merge lhs rhs (Typ.Arrow { Typ.lhs, Typ.rhs })
             separator = token_ Token.Narrowarrow
         in  E.InfixR (arrow <$ separator)
-      ]
-      -- Product type
-      -- Flatten chains when possible
-    , [ let tup t1 t2 = Marked.merge
-              t1
-              t2
-              (case Marked.value t2 of
-                Typ.Tuple ts -> Typ.Tuple (t1 `NonEmpty.cons` ts)
-                _ -> Typ.Tuple (t1 :| [t2])
-              )
-            separator = tokenWith $ \case
-              Token.Symbolic "*" -> Just ()
-              _ -> Nothing
-        in  E.InfixR (tup <$ separator)
       ]
     ]
 
