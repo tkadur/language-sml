@@ -48,5 +48,7 @@ testPretty verbose parser debugLevel w input = do
   when verbose $ do
     putStrLn ""
     putStrLn "Formatted: "
-  putDocW w (evalDocState 2 (Comments.fromList comments) (pretty parsed))
+  putTextLn $ prettyPrint (Config { lineLength = w, indentWidth = 2 })
+                          (Comments.fromList comments)
+                          parsed
   putStrLn ""
