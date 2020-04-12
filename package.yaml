@@ -76,6 +76,31 @@ default-extensions:
 
 library:
   source-dirs: src
+  exposed-modules:
+    - Ast.Associativity
+    - Ast.Decl
+    - Ast.Expr
+    - Ast.Ident.Common
+    - Ast.Ident.Label
+    - Ast.Ident.Long
+    - Ast.Ident.Op
+    - Ast.Ident.StructureIdent
+    - Ast.Ident.TyCon
+    - Ast.Ident.TyVar
+    - Ast.Ident.ValueIdent
+    - Ast.Lit
+    - Ast.Lit.Character
+    - Ast.Pat
+    - Ast.Typ
+    - Common.Marked
+    - Common.Position
+    - Common.Positive
+    - Lexer
+    - Lexer.Token
+    - Parser
+    - Parser.DebugLevel
+    - Pretty
+    - Pretty.Comments
   ghc-options:
     - -Wall
 
