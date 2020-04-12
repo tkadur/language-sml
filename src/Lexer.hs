@@ -3,6 +3,7 @@ module Lexer
   , Error
   , Comment
   , runLexer
+  , showError
   , lexTest
   )
 where
@@ -19,6 +20,9 @@ type Error = String
 runLexer :: FilePath -> Text -> Either Error Result
 runLexer filepath s = revComments <$> runAlex' filepath (toString s) lex
   where revComments (comments, tokens) = (reverse comments, tokens)
+
+showError :: Error -> String
+showError = id
 
 lexTest :: Text -> IO ()
 lexTest s = case runLexer "" s of

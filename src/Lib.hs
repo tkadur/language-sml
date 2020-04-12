@@ -1,7 +1,5 @@
 module Lib where
 
-import           Data.Text.Prettyprint.Doc.Util
-
 import           Parser
 import           Parser.Internal.FixityTable
 import           Parser.DebugLevel

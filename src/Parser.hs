@@ -38,6 +38,9 @@ runParser :: Parser a
 runParser parser debugLevel filename input =
   runReader (M.runParserT (parser <* eof) filename input) debugLevel
 
+showError :: M.ParseErrorBundle Stream Error -> String
+showError = E.errorBundlePretty
+
 parseTest :: (Show a) => Parser a -> DebugLevel -> Stream -> IO ()
 parseTest parser debugLevel input =
   case runParser parser debugLevel filename input of
