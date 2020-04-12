@@ -7,9 +7,8 @@ import qualified Data.List.NonEmpty            as NonEmpty
 import           Ast.Associativity
 import qualified Ast.Associativity             as Associativity
 import           Ast.Expr
-import qualified Common.Marked                 as Marked
 import           Pretty.Internal.Basic
-import           Pretty.Internal.Printers.Declaration
+import {-# SOURCE #-} Pretty.Internal.Printers.Declaration
                                                 ( )
 import           Pretty.Internal.Printers.Identifier
                                                 ( )
@@ -24,14 +23,14 @@ instance Pretty Expr where
     Lit    lit   -> pretty lit
     Ident  ident -> pretty ident
     Record rows  -> record (mapM pretty rows)
-    RecordSelector label -> startsWith ("#" :: Text) <> pretty label
+    RecordSelector label -> startsWith "#" <> pretty label
     Tuple  exprs -> tupled (mapM (grouped . pretty) exprs)
     List   exprs -> list (mapM (grouped . pretty) exprs)
     Sequence exprs ->
       parenSequenced (mapM (grouped . pretty) $ NonEmpty.toList exprs)
 
     Let { decl, exprs } ->
-      [ startsWith ("let" :: Text)
+      [ startsWith "let"
         , nest (line <> grouped (pretty decl))
         , line
         , "in"
@@ -151,8 +150,7 @@ instance Pretty Expr where
                                  , associativity = raiseAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen prevPrecAssoc
-                     (startsWith ("raise" :: Text) <+> pretty expr)
+      maybeExprParen prevPrecAssoc (startsWith "raise" <+> pretty expr)
     If { cond, ifExpr, elseExpr } -> do
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = ifPrec
@@ -173,7 +171,7 @@ instance Pretty Expr where
       let elseExprPretty = return elseExprDoc
 
       setExprPrecAssoc newPrecAssoc
-      [ startsWith ("if " :: Text)
+      [ startsWith "if "
         , align condPretty
         , " then"
         , nest (line <> ifExprPretty)
@@ -201,11 +199,7 @@ instance Pretty Expr where
       let bodyPretty = return bodyDoc
 
       setExprPrecAssoc newPrecAssoc
-      [ startsWith ("while " :: Text)
-        , align condPretty
-        , " do"
-        , nest (line <> bodyPretty)
-        ]
+      [startsWith "while ", align condPretty, " do", nest (line <> bodyPretty)]
         |> sequence
         |> hcat
         |> maybeExprParen prevPrecAssoc
@@ -219,7 +213,7 @@ instance Pretty Expr where
                                  }
       maybeExprParen
         prevPrecAssoc
-        (startsWith ("case" :: Text) <+> grouped (pretty expr) <+> "of" <> nest
+        (startsWith "case" <+> grouped (pretty expr) <+> "of" <> nest
           (hardline <> pretty match)
         )
     Fn { match } -> do
@@ -228,8 +222,7 @@ instance Pretty Expr where
                                  , associativity = fnAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen prevPrecAssoc
-                     (startsWith ("fn" :: Text) <+> align (pretty match))
+      maybeExprParen prevPrecAssoc (startsWith "fn" <+> align (pretty match))
 
 instance Pretty Row where
   pretty Row { label, expr } = pretty label <+> equals <+> align (pretty expr)
@@ -247,7 +240,6 @@ instance Pretty Match where
 instance Pretty MatchArm where
   pretty MatchArm { lhs, rhs } =
     grouped (pretty lhs) <+> "=>" <> softline <> (nest . nest $ pretty rhs)
-
 
 appPrec :: Int
 appPrec = 10

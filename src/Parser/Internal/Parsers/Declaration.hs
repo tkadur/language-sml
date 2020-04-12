@@ -86,8 +86,8 @@ val = dbg ["declaration", "val"] . marked $ do
   valbinds <- binds Token.And valBind
   return Decl.Val { Decl.tyvars, Decl.valbinds }
 
-valBind :: (FixityMonadParser parser) => Parser () -> parser Decl.ValBind
-valBind start = dbg ["delaration", "val", "valbind"] $ do
+valBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MValBind
+valBind start = dbg ["delaration", "val", "valbind"] . marked $ do
   fixityTable <- get
 
   liftParser start
@@ -111,8 +111,8 @@ fun = dbg ["declaration", "fun"] . marked $ do
   funbinds <- binds Token.And funBind
   return Decl.Fun { Decl.tyvars, Decl.funbinds }
 
-funBind :: (FixityMonadParser parser) => Parser () -> parser Decl.FunBind
-funBind start = dbg ["declaration", "fun", "funBind"] $ do
+funBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MFunBind
+funBind start = dbg ["declaration", "fun", "funBind"] . marked $ do
   liftParser start
   clauses <- binds Token.Pipe funClause
   return Decl.FunBind { Decl.clauses }
@@ -161,8 +161,8 @@ typAlias = dbg ["declaration", "typAlias"] . marked $ do
   typbinds <- binds Token.And typBind
   return Decl.TypAlias { Decl.typbinds }
 
-typBind :: (FixityMonadParser parser) => Parser () -> parser Decl.TypBind
-typBind start = dbg ["declaration", "typAlias", "typBind"] $ do
+typBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MTypBind
+typBind start = dbg ["declaration", "typAlias", "typBind"] . marked $ do
   liftParser start
   tyvars <- xseq typeVariable
   tycon  <- typeConstructor
@@ -195,8 +195,8 @@ datatype = dbg ["declaration", "datatype"] . marked $ do
     binds Token.And typBind
   return Decl.Datatype { Decl.datbinds, Decl.withtype }
 
-datBind :: (FixityMonadParser parser) => Parser () -> parser Decl.DatBind
-datBind start = dbg ["declaration", "datatype", "datBind"] $ do
+datBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MDatBind
+datBind start = dbg ["declaration", "datatype", "datBind"] . marked $ do
   liftParser start
   tyvars <- xseq typeVariable
   tycon  <- typeConstructor
@@ -234,8 +234,8 @@ exception = dbg ["declaration", "exception"] . marked $ do
 exnBind :: forall parser
          . (FixityMonadParser parser)
         => Parser ()
-        -> parser Decl.ExnBind
-exnBind start = dbg ["declaration", "exception", "exnBind"] $ do
+        -> parser Decl.MExnBind
+exnBind start = dbg ["declaration", "exception", "exnBind"] . marked $ do
   liftParser start
   choice [replication, regular]
  where

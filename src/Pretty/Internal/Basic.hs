@@ -202,7 +202,7 @@ getIndent = do
   Config {..} <- get
   return indentation
 
-startsWith :: (Pretty a, Show a) => a -> Doc ann
+startsWith :: Text -> Doc ann
 startsWith start = do
   currPos <- getCurrentPosition
   case currPos of
@@ -213,7 +213,7 @@ startsWith start = do
       , Marked.endPosition   = startPos
       }
 
-endsWith :: (Pretty a, Show a) => a -> Doc ann
+endsWith :: Text -> Doc ann
 endsWith end = do
   currPos <- getCurrentPosition
   -- trace "endsWith: " $ traceShow end $ traceShow currPos $ trace "" $ return ()
@@ -303,11 +303,11 @@ record :: DocList ann -> Doc ann
 record docs = do
   docs' <- docs
   case docs' of
-    [] -> startsWith ("{" :: Text) <> endsWith ("}" :: Text)
+    [] -> startsWith "{" <> endsWith "}"
     _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = startsWith ("{ " :: Text)
-  close     = endsWith ("" :: Text) <> flatAlt "\n}" " }"
+  open      = startsWith "{ "
+  close     = endsWith "" <> flatAlt "\n}" " }"
   separator = flatAlt "\n, " ", "
 
 list :: DocList ann -> Doc ann
@@ -317,8 +317,8 @@ list docs = do
     [] -> "[]"
     _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = startsWith ("" :: Text) <> flatAlt "[ " "["
-  close     = endsWith ("" :: Text) <> flatAlt "\n]" "]"
+  open      = startsWith "" <> flatAlt "[ " "["
+  close     = endsWith "" <> flatAlt "\n]" "]"
   separator = flatAlt "\n, " ", "
 
 tupled :: DocList ann -> Doc ann
@@ -328,8 +328,8 @@ tupled docs = do
     [] -> "()"
     _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = startsWith ("" :: Text) <> flatAlt "( " "("
-  close     = endsWith ("" :: Text) <> flatAlt "\n)" ")"
+  open      = startsWith "" <> flatAlt "( " "("
+  close     = endsWith "" <> flatAlt "\n)" ")"
   separator = flatAlt "\n, " ", "
 
 parenSequenced :: DocList ann -> Doc ann
@@ -339,8 +339,8 @@ parenSequenced docs = do
     [] -> error "empty sequences aren't allowed"
     _  -> grouped . align $ encloseSep open close separator (return docs')
  where
-  open      = startsWith ("" :: Text) <> flatAlt "( " "("
-  close     = endsWith ("" :: Text) <> flatAlt "\n)" ")"
+  open      = startsWith "" <> flatAlt "( " "("
+  close     = endsWith "" <> flatAlt "\n)" ")"
   separator = flatAlt "\n; " "; "
 
 sequenced :: DocList ann -> Doc ann
@@ -368,8 +368,6 @@ punctuate' p docs = do
     [] -> []
     [d'] -> [d']
     d1' : d2' : ds' -> d1' : (p' <> d2') : go p' ds'
-  -- Doc.punctuate p' <$> docs
-
 
 nest :: Doc ann -> Doc ann
 nest doc = do

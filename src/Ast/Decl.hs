@@ -16,30 +16,30 @@ type MDecl = Marked Decl
 data Decl
   = Val
     { tyvars :: [MTyVar]
-    , valbinds :: ValBinds
+    , valbinds :: MValBinds
     }
   | Fun
     { tyvars :: [MTyVar]
-    , funbinds :: FunBinds
+    , funbinds :: MFunBinds
     }
   | TypAlias
-    { typbinds :: TypBinds
+    { typbinds :: MTypBinds
     }
   | Datatype
-    { datbinds :: DatBinds
-    , withtype :: Maybe TypBinds
+    { datbinds :: MDatBinds
+    , withtype :: Maybe MTypBinds
     }
   | DatatypeReplication
     { new :: MTyCon
     , old :: MLong MTyCon
     }
   | Abstype
-    { datbinds :: DatBinds
-    , withtype :: Maybe TypBinds
+    { datbinds :: MDatBinds
+    , withtype :: Maybe MTypBinds
     , decl :: MDecl
     }
   | Exception
-    { exnbinds :: ExnBinds
+    { exnbinds :: MExnBinds
     }
   | Local
     { decl :: MDecl
@@ -62,15 +62,25 @@ data Decl
     }
   deriving (Eq, Show)
 
-type ValBinds = NonEmpty ValBind
+type MValBinds = NonEmpty MValBind
 
-type FunBinds = NonEmpty FunBind
+type MFunBinds = NonEmpty MFunBind
 
-type TypBinds = NonEmpty TypBind
+type MTypBinds = NonEmpty MTypBind
 
-type DatBinds = NonEmpty DatBind
+type MDatBinds = NonEmpty MDatBind
 
-type ExnBinds = NonEmpty ExnBind
+type MExnBinds = NonEmpty MExnBind
+
+type MValBind = Marked ValBind
+
+type MFunBind = Marked FunBind
+
+type MTypBind = Marked TypBind
+
+type MDatBind = Marked DatBind
+
+type MExnBind = Marked ExnBind
 
 data ValBind
   = ValBind
