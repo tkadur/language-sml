@@ -9,7 +9,6 @@ import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
 import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Pretty.Internal.Basic
-
 import           Language.Sml.Pretty.Internal.Printers.Expression
                                                 ( )
 import           Language.Sml.Pretty.Internal.Printers.Identifier

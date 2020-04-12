@@ -2,6 +2,7 @@ module Lib where
 
 import           Language.Sml.Parser
 import           Language.Sml.Parser.Internal.FixityTable
+import           Language.Sml.Parser.Internal.Stream
 import           Language.Sml.Parser.DebugLevel
 import           Language.Sml.Lexer
 import           Language.Sml.Pretty
@@ -46,7 +47,6 @@ testPretty verbose parser debugLevel w input = do
   when verbose $ do
     putStrLn ""
     putStrLn "Formatted: "
-  putTextLn $ prettyPrint (Config { lineLength = w, indentWidth = 2 })
-                          (Comments.fromList comments)
-                          parsed
+  putTextLn
+    $ prettyPrint (Config { lineLength = w, indentWidth = 2 }) comments parsed
   putStrLn ""
