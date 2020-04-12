@@ -77,30 +77,30 @@ default-extensions:
 library:
   source-dirs: src
   exposed-modules:
-    - Ast.Associativity
-    - Ast.Decl
-    - Ast.Expr
-    - Ast.Ident.Common
-    - Ast.Ident.Label
-    - Ast.Ident.Long
-    - Ast.Ident.Op
-    - Ast.Ident.StructureIdent
-    - Ast.Ident.TyCon
-    - Ast.Ident.TyVar
-    - Ast.Ident.ValueIdent
-    - Ast.Lit
-    - Ast.Lit.Character
-    - Ast.Pat
-    - Ast.Typ
-    - Common.Marked
-    - Common.Position
-    - Common.Positive
-    - Lexer
-    - Lexer.Token
-    - Parser
-    - Parser.DebugLevel
-    - Pretty
-    - Pretty.Comments
+    - Language.Sml.Ast.Associativity
+    - Language.Sml.Ast.Decl
+    - Language.Sml.Ast.Expr
+    - Language.Sml.Ast.Ident.Common
+    - Language.Sml.Ast.Ident.Label
+    - Language.Sml.Ast.Ident.Long
+    - Language.Sml.Ast.Ident.Op
+    - Language.Sml.Ast.Ident.StructureIdent
+    - Language.Sml.Ast.Ident.TyCon
+    - Language.Sml.Ast.Ident.TyVar
+    - Language.Sml.Ast.Ident.ValueIdent
+    - Language.Sml.Ast.Lit
+    - Language.Sml.Ast.Lit.Character
+    - Language.Sml.Ast.Pat
+    - Language.Sml.Ast.Typ
+    - Language.Sml.Common.Marked
+    - Language.Sml.Common.Position
+    - Language.Sml.Common.Positive
+    - Language.Sml.Lexer
+    - Language.Sml.Lexer.Token
+    - Language.Sml.Parser
+    - Language.Sml.Parser.DebugLevel
+    - Language.Sml.Pretty
+    - Language.Sml.Pretty.Comments
   ghc-options:
     - -Wall
 
