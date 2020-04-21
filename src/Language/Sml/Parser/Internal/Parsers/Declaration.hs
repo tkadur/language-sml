@@ -64,10 +64,10 @@ declaration :: (MonadParser parser, MonadState FixityTable parser)
             => parser MDecl
 declaration = dbg ["declaration"] $ do
     -- Handle declaration sequences
-  decls <- declaration' `sepBy` (token_ Token.Semicolon <|> nothing)
-  case decls of
+  decls <- marked $ declaration' `sepBy` (token_ Token.Semicolon <|> nothing)
+  case Marked.value decls of
     [decl] -> return decl
-    _      -> marked . return $ Decl.Sequence decls
+    _      -> return (Decl.Sequence <$> decls)
  where
   declaration' = choice
     [ val
