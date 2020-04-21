@@ -304,7 +304,7 @@ record docs = do
   docs' <- docs
   case docs' of
     [] -> startsWith "{" <> endsWith "}"
-    _  -> grouped . align $ encloseSep open close separator (return docs')
+    _  -> align $ encloseSep open close separator (mapM (align . return) docs')
  where
   open      = startsWith "{ "
   close     = endsWith "" <> flatAlt "\n}" " }"
@@ -315,7 +315,7 @@ list docs = do
   docs' <- docs
   case docs' of
     [] -> "[]"
-    _  -> grouped . align $ encloseSep open close separator (return docs')
+    _  -> align $ encloseSep open close separator (mapM (align . return) docs')
  where
   open      = startsWith "" <> flatAlt "[ " "["
   close     = endsWith "" <> flatAlt "\n]" "]"
@@ -326,7 +326,7 @@ tupled docs = do
   docs' <- docs
   case docs' of
     [] -> "()"
-    _  -> grouped . align $ encloseSep open close separator (return docs')
+    _  -> align $ encloseSep open close separator (mapM (align . return) docs')
  where
   open      = startsWith "" <> flatAlt "( " "("
   close     = endsWith "" <> flatAlt "\n)" ")"
@@ -337,7 +337,7 @@ parenSequenced docs = do
   docs' <- docs
   case docs' of
     [] -> error "empty sequences aren't allowed"
-    _  -> grouped . align $ encloseSep open close separator (return docs')
+    _  -> align $ encloseSep open close separator (mapM (align . return) docs')
  where
   open      = startsWith "" <> flatAlt "( " "("
   close     = endsWith "" <> flatAlt "\n)" ")"
@@ -348,8 +348,8 @@ sequenced docs = do
   docs' <- docs
   case docs' of
     [] -> error "empty sequences aren't allowed"
-    _  -> grouped . align $ hcat (punctuate separator $ return docs')
-  where separator = flatAlt ";\n" "; "
+    _  -> align $ vhard (punctuate separator $ return docs')
+  where separator = "; "
 
 punctuate :: Doc ann -> DocList ann -> DocList ann
 punctuate p docs = do

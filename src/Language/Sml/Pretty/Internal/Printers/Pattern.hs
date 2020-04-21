@@ -16,13 +16,13 @@ import           Language.Sml.Pretty.Internal.Printers.Type
                                                 ( )
 
 instance Pretty Pat where
-  pretty = \case
+  pretty = grouped . \case
     Wild         -> "_"
     Lit    lit   -> pretty lit
     Ident  ident -> pretty ident
-    Record rows  -> record $ mapM (grouped . pretty) rows
-    Tuple  pats  -> tupled $ mapM (grouped . pretty) pats
-    List   pats  -> list $ mapM (grouped . pretty) pats
+    Record rows  -> record $ mapM pretty rows
+    Tuple  pats  -> tupled $ mapM pretty pats
+    List   pats  -> list $ mapM pretty pats
 
     Constructed { constructor, arg } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -30,9 +30,8 @@ instance Pretty Pat where
                                  , associativity = appAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen
-        prevPrecAssoc
-        (pretty constructor <> line <> hang (grouped $ pretty arg))
+      maybeExprParen prevPrecAssoc
+                     (pretty constructor <> line <> hang (pretty arg))
 
     InfixConstructed { lhs, op, precedence, associativity, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -42,11 +41,11 @@ instance Pretty Pat where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- grouped (pretty lhs)
+      lhsDoc <- pretty lhs
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- grouped (pretty rhs)
+      rhsDoc <- pretty rhs
       let rhsPretty = return rhsDoc
 
       setTypPrecAssoc newPrecAssoc
@@ -62,9 +61,7 @@ instance Pretty Pat where
                                  , associativity = annotAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen
-        prevPrecAssoc
-        (grouped (pretty pat) <+> colon <+> align (grouped $ pretty typ))
+      maybeExprParen prevPrecAssoc (pretty pat <+> colon <+> align (pretty typ))
 
     As { ident, annot, as } -> undefined
 
