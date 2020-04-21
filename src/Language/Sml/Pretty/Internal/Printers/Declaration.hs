@@ -32,13 +32,30 @@ instance Pretty Decl where
             [tyvar] -> startsWith "val" <+> pretty tyvar
             _       -> startsWith "val" <+> tupled (mapM pretty tyvars)
       in  preamble <+> binds valbinds
+
     Fun { tyvars, funbinds } ->
       let preamble = case tyvars of
             []      -> startsWith "fun"
             [tyvar] -> startsWith "fun" <+> pretty tyvar
             _       -> startsWith "fun" <+> tupled (mapM pretty tyvars)
       in  preamble <+> binds funbinds
+
     TypAlias { typbinds } -> startsWith "type" <+> binds typbinds
+
+    Datatype { datbinds, withtype } ->
+      let withtypePretty = case withtype of
+            Nothing       -> emptyDoc
+            Just typbinds -> hardline <> withtypeBinds typbinds
+      in  startsWith "datatype" <+> binds datbinds <> withtypePretty
+
+    DatatypeReplication { new, old } ->
+      startsWith "datatype" <+> pretty new <+> equals <> grouped
+        (nest $ line <> "datatype" <+> pretty old)
+
+    Abstype { datbinds, withtype, decl } -> undefined
+
+    Exception { exnbinds } -> startsWith "exception" <+> binds exnbinds
+
     Local { decl, body } ->
       [ startsWith "local"
         , nest (line <> pretty decl)
@@ -50,7 +67,32 @@ instance Pretty Decl where
         ]
         |> sequence
         |> hcat
+
+    Open strids ->
+      let structureIdents = NonEmpty.toList strids
+      in  startsWith "open" <+> alignsep (mapM pretty structureIdents)
+
     Sequence decls -> vhard (mapM pretty decls)
+
+    Infix { precedence, idents } ->
+      let precedencePretty = case precedence of
+            Nothing   -> emptyDoc
+            Just prec -> space <> pretty prec
+          identifiers = NonEmpty.toList idents
+      in  startsWith "infix" <> precedencePretty <+> alignsep
+            (mapM pretty identifiers)
+
+    Infixr { precedence, idents } ->
+      let precedencePretty = case precedence of
+            Nothing   -> emptyDoc
+            Just prec -> space <> pretty prec
+          identifiers = NonEmpty.toList idents
+      in  startsWith "infixr" <> precedencePretty <+> alignsep
+            (mapM pretty identifiers)
+
+    Nonfix { idents } ->
+      let identifiers = NonEmpty.toList idents
+      in  startsWith "nonfix" <+> alignsep (mapM pretty identifiers)
 
 instance Pretty ValBind where
   pretty ValBind { isRec, lhs, rhs } =
@@ -70,45 +112,39 @@ instance Pretty FunBind where
 instance Pretty FunClause where
   pretty = \case
     InfixClause { lhs, infixName, rhs, infixArgs, returnTyp, body } ->
-      let
-        infixPart' = prettyArg lhs <+> pretty infixName <+> prettyArg rhs
-        -- We can omit parens around the infix part if there are no other arguments
-        infixPart  = case infixArgs of
-          [] -> infixPart'
-          _  -> parens infixPart'
+      let infixPart' = prettyArg lhs <+> pretty infixName <+> prettyArg rhs
+          -- We can omit parens around the infix part if there are no other arguments
+          infixPart  = case infixArgs of
+            [] -> infixPart'
+            _  -> parens infixPart'
 
-        -- There may not be other args, so we need to handle spacing
-        argsPretty = case infixArgs of
-          [] -> emptyDoc
-          _  -> space <> grouped (align . vsep $ mapM prettyArg infixArgs)
-
-        -- There may not be a return type, so we need to handle spacing
-        returnTypPretty = maybe
-          emptyDoc
-          (\typ -> space <> colon <+> align (pretty typ))
-          returnTyp
-
-        bodyPretty = grouped (nest . nest $ line <> pretty body)
-      in
-        infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
-    NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
-      let
-        args       = NonEmpty.toList nonfixArgs
-        argsPretty = align (grouped . vsep $ mapM prettyArg args)
+          -- There may not be other args, so we need to handle spacing
+          argsPretty = case infixArgs of
+            [] -> emptyDoc
+            _  -> space <> alignsep (mapM prettyArg infixArgs)
 
           -- There may not be a return type, so we need to handle spacing
-        returnTypPretty = maybe
-          emptyDoc
-          (\typ -> space <> colon <+> align (pretty typ))
-          returnTyp
+          returnTypPretty = case returnTyp of
+            Nothing  -> emptyDoc
+            Just typ -> space <> colon <+> align (pretty typ)
 
-        bodyPretty = grouped (nest . nest $ line <> pretty body)
-      in
-        pretty nonfixName
-        <+> argsPretty
-        <>  returnTypPretty
-        <+> equals
-        <>  bodyPretty
+          bodyPretty = grouped (nest . nest $ line <> pretty body)
+      in  infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
+    NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
+      let args       = NonEmpty.toList nonfixArgs
+          argsPretty = alignsep (mapM prettyArg args)
+
+            -- There may not be a return type, so we need to handle spacing
+          returnTypPretty = case returnTyp of
+            Nothing  -> emptyDoc
+            Just typ -> space <> colon <+> align (pretty typ)
+
+          bodyPretty = grouped (nest . nest $ line <> pretty body)
+      in  pretty nonfixName
+            <+> argsPretty
+            <>  returnTypPretty
+            <+> equals
+            <>  bodyPretty
    where
     -- Hack to make argument parenthesized when necessary
     -- Pretend that they're inside a higher-than-maximum precedence
@@ -133,6 +169,14 @@ instance Pretty TypBind where
       [tyvar] -> pretty tyvar <> space
       _       -> tupled (mapM pretty tyvars) <> space
 
+instance Pretty DatBind where
+  pretty DatBind { tyvars, tycon, conbinds } = undefined
+
+instance Pretty ConBind where
+  pretty ConBind { constructor, arg } = undefined
+
+instance Pretty ExnBind where
+  pretty = undefined
 
 binds :: (Pretty a, Show a) => NonEmpty (Marked a) -> Doc ann
 binds = \case
@@ -140,6 +184,7 @@ binds = \case
   firstBind :| andBinds ->
     let andBindsPretty = map
           (\andBind@Marked.Marked { Marked.startPosition } ->
+            -- Anchor "and" to the following bind instead of the previous one
             pretty
                 (Marked.Marked { Marked.value         = "and" :: Text
                                , Marked.startPosition
@@ -150,3 +195,13 @@ binds = \case
           )
           andBinds
     in  vhard . sequence $ (pretty firstBind : andBindsPretty)
+
+withtypeBinds :: MTypBinds -> Doc ann
+withtypeBinds typbinds = prefix <+> binds typbinds
+ where
+  -- Anchor "withtype" to the following bind instead of the previous one
+  prefix = pretty $ Marked.Marked { Marked.value         = "withtype" :: Text
+                                  , Marked.startPosition
+                                  , Marked.endPosition   = startPosition
+                                  }
+  Marked.Marked { Marked.startPosition } :| _ = typbinds

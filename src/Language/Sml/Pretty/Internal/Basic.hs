@@ -26,6 +26,7 @@ module Language.Sml.Pretty.Internal.Basic
   , hang
   , hangBy
   , indent
+  , alignsep
   , align
   , grouped
   , flatAlt
@@ -398,6 +399,11 @@ indent :: Doc ann -> Doc ann
 indent doc = do
   i <- getIndent
   adaptFunction (Doc.indent i) doc
+
+-- | Pretty-print multiple items. If possible, fit them on one line
+--   separated by spaces. Otherwise, align them and put each on its own line
+alignsep :: DocList ann -> Doc ann
+alignsep = grouped . align . vsep
 
 align :: Doc ann -> Doc ann
 align = adaptFunction Doc.align
