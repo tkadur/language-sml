@@ -54,22 +54,58 @@ instance Pretty FunBind where
 
 instance Pretty FunClause where
   pretty = \case
-    InfixClause { lhs, infixName, rhs, infixArgs, returnType, body } ->
-      undefined
-    NonfixClause { nonfixName, nonfixArgs, returnType, body } ->
-      let args = NonEmpty.toList nonfixArgs
-          prettyArg arg = do
-            -- Hack to make argument parenthesized when necessary
-            -- Pretend that they're inside a higher-than-maximum precedence
-            -- operator
-            setExprPrecAssoc PrecAssoc { precedence    = 11
-                                       , associativity = Associativity.Left
-                                       , direction     = Associativity.Right
-                                       }
-            res <- pretty arg
-            resetExprPrecAssoc
-            return res
-      in  pretty nonfixName <+> align (grouped . vsep $ mapM prettyArg args)
+    InfixClause { lhs, infixName, rhs, infixArgs, returnTyp, body } ->
+      let
+        infixPart' = prettyArg lhs <+> pretty infixName <+> prettyArg rhs
+        -- We can omit parens around the infix part if there are no other arguments
+        infixPart  = case infixArgs of
+          [] -> infixPart'
+          _  -> parens infixPart'
+
+        -- There may not be other args, so we need to handle spacing
+        argsPretty = case infixArgs of
+          [] -> emptyDoc
+          _  -> space <> align (grouped . vsep $ mapM prettyArg infixArgs)
+
+        -- There may not be a return type, so we need to handle spacing
+        returnTypPretty = maybe
+          emptyDoc
+          (\typ -> space <> colon <+> align (pretty typ))
+          returnTyp
+
+        bodyPretty = grouped (nest . nest $ line <> pretty body)
+      in
+        infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
+    NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
+      let
+        args       = NonEmpty.toList nonfixArgs
+        argsPretty = align (grouped . vsep $ mapM prettyArg args)
+
+          -- There may not be a return type, so we need to handle spacing
+        returnTypPretty = maybe
+          emptyDoc
+          (\typ -> space <> colon <+> align (pretty typ))
+          returnTyp
+
+        bodyPretty = grouped (nest . nest $ line <> pretty body)
+      in
+        pretty nonfixName
+        <+> argsPretty
+        <>  returnTypPretty
+        <+> equals
+        <>  bodyPretty
+   where
+    -- Hack to make argument parenthesized when necessary
+    -- Pretend that they're inside a higher-than-maximum precedence
+    -- operator
+    prettyArg arg = do
+      setExprPrecAssoc PrecAssoc { precedence    = 11
+                                 , associativity = Associativity.Left
+                                 , direction     = Associativity.Right
+                                 }
+      res <- pretty arg
+      resetExprPrecAssoc
+      return res
 
 
 binds :: (Pretty a, Show a) => NonEmpty (Marked a) -> Doc ann

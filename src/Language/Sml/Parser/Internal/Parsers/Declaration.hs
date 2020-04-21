@@ -127,38 +127,39 @@ funBind start = dbg ["declaration", "fun", "funBind"] . marked $ do
 funClause :: (FixityMonadParser parser) => Parser () -> parser Decl.FunClause
 funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
   liftParser start
-  choice [nonfixClause, infixClause]
+  choice [infixClause, nonfixClause]
  where
-  nonfixClause = do
-    fixityTable <- get
-    nonfixName  <- nonfixValueIdentifier fixityTable
-    nonfixArgs  <- some (atomicPattern fixityTable)
-    returnType  <- optional (token_ Token.Colon >> typ)
-    token_ Token.Equal
-    body <- expression fixityTable
-    return Decl.NonfixClause { Decl.nonfixName
-                             , Decl.nonfixArgs
-                             , Decl.returnType
-                             , Decl.body
-                             }
-
   -- TODO(tkadur) enforce parens as the standard requires
-  infixClause = do
+  -- @try@ to prevent conflict with nonfix clause
+  infixClause = try $ do
     fixityTable <- get
     lhs         <- atomicPattern fixityTable
     infixName   <- valueIdentifier
     rhs         <- atomicPattern fixityTable
     infixArgs   <- many (atomicPattern fixityTable)
-    returnType  <- optional (token_ Token.Colon >> typ)
+    returnTyp   <- optional (token_ Token.Colon >> typ)
     token_ Token.Equal
     body <- expression fixityTable
     return Decl.InfixClause { Decl.lhs
                             , Decl.infixName
                             , Decl.rhs
                             , Decl.infixArgs
-                            , Decl.returnType
+                            , Decl.returnTyp
                             , Decl.body
                             }
+
+  nonfixClause = do
+    fixityTable <- get
+    nonfixName  <- nonfixValueIdentifier fixityTable
+    nonfixArgs  <- some (atomicPattern fixityTable)
+    returnTyp   <- optional (token_ Token.Colon >> typ)
+    token_ Token.Equal
+    body <- expression fixityTable
+    return Decl.NonfixClause { Decl.nonfixName
+                             , Decl.nonfixArgs
+                             , Decl.returnTyp
+                             , Decl.body
+                             }
 
 -- Type aliases
 

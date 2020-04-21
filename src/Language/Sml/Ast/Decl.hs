@@ -139,13 +139,13 @@ data FunClause
     , infixName :: MValueIdent
     , rhs :: MPat
     , infixArgs :: [MPat]
-    , returnType :: Maybe MTyp
+    , returnTyp :: Maybe MTyp
     , body :: MExpr
     }
   | NonfixClause
     { nonfixName :: MOp MValueIdent
     , nonfixArgs :: NonEmpty MPat
-    , returnType :: Maybe MTyp
+    , returnTyp :: Maybe MTyp
     , body :: MExpr
     }
   deriving (Eq, Show)

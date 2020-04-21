@@ -20,15 +20,23 @@ import           Language.Sml.Pretty.Internal.Printers.Pattern
 import           Language.Sml.Pretty.Internal.Printers.Type
                                                 ( )
 
+-- We want expressions which feel "homogeneous", in a sense, to be grouped together.
+-- So `x + y + z` should be grouped as one expression even though there's nesting and in
+-- the corresponding AST. So we insert @grouped@ for pretty-printing nested @Expr@s
+-- everywhere except for those "homogeneous" cases. In those cases, we insert @grouped@
+-- only if the parent expression is of the same form.
+-- TODO(tkadur) Grouping management in general is a massive hack. Do it better.
+
 instance Pretty Expr where
-  pretty = grouped . \case
-    Lit      lit   -> pretty lit
-    Ident    ident -> pretty ident
-    Record   rows  -> record (mapM pretty rows)
+  pretty = \case
+    Lit    lit   -> pretty lit
+    Ident  ident -> pretty ident
+    Record rows  -> record (mapM pretty rows)
     RecordSelector label -> startsWith "#" <> pretty label
-    Tuple    exprs -> tupled (mapM pretty exprs)
-    List     exprs -> list (mapM pretty exprs)
-    Sequence exprs -> parenSequenced (mapM pretty $ NonEmpty.toList exprs)
+    Tuple  exprs -> tupled (mapM (grouped . pretty) exprs)
+    List   exprs -> list (mapM (grouped . pretty) exprs)
+    Sequence exprs ->
+      parenSequenced (mapM (grouped . pretty) $ NonEmpty.toList exprs)
 
     Let { decl, exprs } ->
       [ startsWith "let"
@@ -36,7 +44,7 @@ instance Pretty Expr where
         , line
         , "in"
         , nest
-          (line <> (grouped . sequenced . mapM pretty $ NonEmpty.toList exprs))
+          (line <> (sequenced . mapM (grouped . pretty) $ NonEmpty.toList exprs))
         , line
         , "end"
         ]
@@ -60,7 +68,13 @@ instance Pretty Expr where
 
       setExprPrecAssoc newPrecAssoc
 
-      maybeExprParen prevPrecAssoc (lhsPretty <> nest (line <> rhsPretty))
+      -- Only group together @App@ when not coming from another @App@
+      let res = maybeExprParen prevPrecAssoc
+                               (lhsPretty <> nest (line <> rhsPretty))
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec == appPrec then res else grouped res
 
     InfixApp { lhs, op, precedence, associativity, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -79,10 +93,16 @@ instance Pretty Expr where
 
       setExprPrecAssoc newPrecAssoc
 
-      [lhsPretty <+> pretty op, rhsPretty]
-        |> sequence
-        |> sep
-        |> maybeExprParen prevPrecAssoc
+      -- Only group together @App@ when not coming from another @App@
+      let res =
+            [lhsPretty, pretty op <+> rhsPretty]
+              |> sequence
+              |> vsep
+              |> maybeExprParen prevPrecAssoc
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec `elem` [0 .. 9] then res else grouped res
 
     Annot { expr, typ } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -91,7 +111,7 @@ instance Pretty Expr where
                                  , direction     = Associativity.Left
                                  }
       maybeExprParen prevPrecAssoc
-                     (pretty expr <+> colon <+> align (pretty typ))
+                     (grouped (pretty expr) <+> colon <+> align (pretty typ))
 
     Andalso { lhs, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -101,18 +121,18 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- pretty lhs
+      lhsDoc <- grouped (pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- pretty rhs
+      rhsDoc <- grouped (pretty rhs)
       let rhsPretty = return rhsDoc
 
       setExprPrecAssoc newPrecAssoc
 
       [lhsPretty, "andalso", rhsPretty]
         |> sequence
-        |> sep
+        |> vsep
         |> maybeExprParen prevPrecAssoc
 
     Orelse { lhs, rhs } -> do
@@ -123,18 +143,18 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- pretty lhs
+      lhsDoc <- grouped (pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- pretty rhs
+      rhsDoc <- grouped (pretty rhs)
       let rhsPretty = return rhsDoc
 
       setExprPrecAssoc newPrecAssoc
 
       [lhsPretty, "orelse", rhsPretty]
         |> sequence
-        |> sep
+        |> vsep
         |> maybeExprParen prevPrecAssoc
 
     Handle { expr, match } -> do
@@ -143,7 +163,8 @@ instance Pretty Expr where
                                  , associativity = handleAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen prevPrecAssoc (pretty expr <+> "handle" <+> pretty match)
+      maybeExprParen prevPrecAssoc
+                     (grouped (pretty expr) <+> "handle" <+> pretty match)
 
     Raise expr -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -151,7 +172,8 @@ instance Pretty Expr where
                                  , associativity = raiseAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen prevPrecAssoc (startsWith "raise" <+> pretty expr)
+      maybeExprParen prevPrecAssoc
+                     (startsWith "raise" <+> grouped (pretty expr))
     If { cond, ifExpr, elseExpr } -> do
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = ifPrec
@@ -160,15 +182,15 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      condDoc <- pretty cond
+      condDoc <- grouped (pretty cond)
       let condPretty = return condDoc
 
       setExprPrecAssoc newPrecAssoc
-      ifExprDoc <- pretty ifExpr
+      ifExprDoc <- grouped (pretty ifExpr)
       let ifExprPretty = return ifExprDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      elseExprDoc <- pretty elseExpr
+      elseExprDoc <- grouped (pretty elseExpr)
       let elseExprPretty = return elseExprDoc
 
       setExprPrecAssoc newPrecAssoc
@@ -192,11 +214,11 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      condDoc <- pretty cond
+      condDoc <- grouped (pretty cond)
       let condPretty = return condDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      bodyDoc <- pretty body
+      bodyDoc <- grouped (pretty body)
       let bodyPretty = return bodyDoc
 
       setExprPrecAssoc newPrecAssoc
@@ -214,7 +236,7 @@ instance Pretty Expr where
                                  }
       maybeExprParen
         prevPrecAssoc
-        (startsWith "case" <+> pretty expr <+> "of" <> nest
+        (startsWith "case" <+> grouped (pretty expr) <+> "of" <> nest
           (hardline <> pretty match)
         )
     Fn { match } -> do
@@ -226,7 +248,8 @@ instance Pretty Expr where
       maybeExprParen prevPrecAssoc (startsWith "fn" <+> align (pretty match))
 
 instance Pretty Row where
-  pretty Row { label, expr } = pretty label <+> equals <+> align (pretty expr)
+  pretty Row { label, expr } =
+    pretty label <+> equals <+> (align . grouped $ pretty expr)
 
 instance Pretty Match where
   pretty arms =
@@ -240,7 +263,7 @@ instance Pretty Match where
 
 instance Pretty MatchArm where
   pretty MatchArm { lhs, rhs } =
-    pretty lhs <+> "=>" <> softline <> (nest . nest $ pretty rhs)
+    pretty lhs <+> "=>" <> grouped (nest . nest $ line <> pretty rhs)
 
 appPrec :: Int
 appPrec = 10

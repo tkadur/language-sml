@@ -132,7 +132,11 @@ tuple parser = dbg ["tuple"]
 
 -- | @xseq p@ parses a @pseq@ as given in the definition
 xseq :: (MonadParser parser, Show a) => parser a -> parser [a]
-xseq parser = dbg ["xseq"] $ choice [sqnce, singleton, emptySeq]
+-- @try@ to avoid consuming parens from the start of a pattern instead of
+-- from a xseq.
+-- TODO(tkadur) This is a huge hack and only works cause @xseq@ is
+-- only ever used for tyvarseqs
+xseq parser = dbg ["xseq"] $ choice [M.try sqnce, singleton, emptySeq]
  where
   emptySeq  = dbg ["xseq", "emptySeq"] $ return []
 

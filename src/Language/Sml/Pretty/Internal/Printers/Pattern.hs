@@ -15,14 +15,16 @@ import           Language.Sml.Pretty.Internal.Printers.Literal
 import           Language.Sml.Pretty.Internal.Printers.Type
                                                 ( )
 
+-- See Expression.hs for explanation of grouping logic.
+
 instance Pretty Pat where
-  pretty = grouped . \case
+  pretty = \case
     Wild         -> "_"
     Lit    lit   -> pretty lit
     Ident  ident -> pretty ident
     Record rows  -> record $ mapM pretty rows
-    Tuple  pats  -> tupled $ mapM pretty pats
-    List   pats  -> list $ mapM pretty pats
+    Tuple  pats  -> tupled $ mapM (grouped . pretty) pats
+    List   pats  -> list $ mapM (grouped . pretty) pats
 
     Constructed { constructor, arg } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -61,14 +63,16 @@ instance Pretty Pat where
                                  , associativity = annotAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen prevPrecAssoc (pretty pat <+> colon <+> align (pretty typ))
+      maybeExprParen
+        prevPrecAssoc
+        (grouped (pretty pat) <+> colon <+> grouped (align $ pretty typ))
 
     As { ident, annot, as } -> undefined
 
 instance Pretty Row where
   pretty = \case
     RowWild -> "..."
-    Row { label, pat } -> pretty label <+> equals <+> pretty pat
+    Row { label, pat } -> pretty label <+> equals <+> grouped (pretty pat)
     RowPun { ident, annot, as } -> undefined
 
 appPrec :: Int

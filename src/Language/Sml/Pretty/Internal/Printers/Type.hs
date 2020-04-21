@@ -45,7 +45,7 @@ instance Pretty Typ where
         |> NonEmpty.toList
         |> mapM pretty
         |> punctuate " *"
-        |> sep
+        |> vsep
         |> (setTypPrecAssoc newPrecAssoc >>)
         |> maybeTypParen prevPrecAssoc
 
@@ -67,7 +67,7 @@ instance Pretty Typ where
       setTypPrecAssoc newPrecAssoc
       [lhsPretty <+> "->", rhsPretty]
         |> sequence
-        |> sep
+        |> vsep
         |> maybeTypParen prevPrecAssoc
 
 instance Pretty Row where
