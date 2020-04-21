@@ -7,7 +7,7 @@ import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
 import           Language.Sml.Ast.Decl
-import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
+import           Language.Sml.Ast.Ident.TyVar   ( )
 import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Pretty.Internal.Basic
@@ -23,7 +23,9 @@ import           Language.Sml.Pretty.Internal.Printers.Type
                                                 ( )
 
 instance Pretty Decl where
-  pretty = \case
+  -- It's safe to blanket group @Decl@s since they don't need to consolidate
+  -- chunks of the AST like @Expr@s/@Pat@s/@Typ@s
+  pretty = grouped . \case
     Val { tyvars, valbinds } ->
       let preamble = case tyvars of
             []      -> startsWith "val"
@@ -36,6 +38,19 @@ instance Pretty Decl where
             [tyvar] -> startsWith "fun" <+> pretty tyvar
             _       -> startsWith "fun" <+> tupled (mapM pretty tyvars)
       in  preamble <+> binds funbinds
+    TypAlias { typbinds } -> startsWith "type" <+> binds typbinds
+    Local { decl, body } ->
+      [ startsWith "local"
+        , nest (line <> pretty decl)
+        , line
+        , "in"
+        , nest (line <> pretty body)
+        , line
+        , endsWith "end"
+        ]
+        |> sequence
+        |> hcat
+    Sequence decls -> vhard (mapM pretty decls)
 
 instance Pretty ValBind where
   pretty ValBind { isRec, lhs, rhs } =
@@ -65,7 +80,7 @@ instance Pretty FunClause where
         -- There may not be other args, so we need to handle spacing
         argsPretty = case infixArgs of
           [] -> emptyDoc
-          _  -> space <> align (grouped . vsep $ mapM prettyArg infixArgs)
+          _  -> space <> grouped (align . vsep $ mapM prettyArg infixArgs)
 
         -- There may not be a return type, so we need to handle spacing
         returnTypPretty = maybe
@@ -106,6 +121,17 @@ instance Pretty FunClause where
       res <- pretty arg
       resetExprPrecAssoc
       return res
+
+instance Pretty TypBind where
+  pretty TypBind { tyvars, tycon, typ } =
+    tyvarsPretty <> pretty tycon <+> equals <> grouped
+      (nest $ line <> pretty typ)
+   where
+     -- Deal with parenthesization and spacing of 0, 1, or many tyvars
+    tyvarsPretty = case tyvars of
+      []      -> emptyDoc
+      [tyvar] -> pretty tyvar <> space
+      _       -> tupled (mapM pretty tyvars) <> space
 
 
 binds :: (Pretty a, Show a) => NonEmpty (Marked a) -> Doc ann

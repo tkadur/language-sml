@@ -12,6 +12,8 @@ import           Language.Sml.Pretty.Internal.Basic
 import           Language.Sml.Pretty.Internal.Printers.Identifier
                                                 ( )
 
+-- See Expression.hs of explanation of grouping
+
 instance Pretty Typ where
   pretty = \case
     TyVar  tyvar -> pretty tyvar
@@ -19,19 +21,20 @@ instance Pretty Typ where
     TyCon  tycon -> pretty tycon
 
     App { tycons, args } ->
-      let tyconsPretty = sep $ mapM pretty (NonEmpty.toList tycons)
-          argsPretty   = case args of
-            arg :| [] -> do
-              prevPrecAssoc <- getTypPrecAssoc
-              setTypPrecAssoc PrecAssoc { precedence    = appPrec
-                                        , associativity = appAssoc
-                                        , direction     = Associativity.Left
-                                        }
-              maybeTypParen prevPrecAssoc (pretty arg)
-            _ -> do
-              resetTypPrecAssoc
-              tupled $ mapM pretty (NonEmpty.toList args)
-      in  sep $ sequence [argsPretty, tyconsPretty]
+      grouped
+        $ let tyconsPretty = sep $ mapM pretty (NonEmpty.toList tycons)
+              argsPretty   = case args of
+                arg :| [] -> do
+                  prevPrecAssoc <- getTypPrecAssoc
+                  setTypPrecAssoc PrecAssoc { precedence    = appPrec
+                                            , associativity = appAssoc
+                                            , direction     = Associativity.Left
+                                            }
+                  maybeTypParen prevPrecAssoc (pretty arg)
+                _ -> do
+                  resetTypPrecAssoc
+                  tupled $ mapM pretty (NonEmpty.toList args)
+          in  sep $ sequence [argsPretty, tyconsPretty]
 
     Tuple typs -> do
       prevPrecAssoc <- getTypPrecAssoc
@@ -41,13 +44,19 @@ instance Pretty Typ where
                                    }
       setTypPrecAssoc newPrecAssoc
 
-      typs
-        |> NonEmpty.toList
-        |> mapM pretty
-        |> punctuate " *"
-        |> vsep
-        |> (setTypPrecAssoc newPrecAssoc >>)
-        |> maybeTypParen prevPrecAssoc
+      let res =
+            typs
+              |> NonEmpty.toList
+              |> mapM pretty
+              |> punctuate " *"
+              |> vsep
+              |> (setTypPrecAssoc newPrecAssoc >>)
+              |> maybeTypParen prevPrecAssoc
+
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec == tuplePrec then res else grouped res
 
     Arrow { lhs, rhs } -> do
       prevPrecAssoc <- getTypPrecAssoc
@@ -65,13 +74,21 @@ instance Pretty Typ where
       let rhsPretty = return rhsDoc
 
       setTypPrecAssoc newPrecAssoc
-      [lhsPretty <+> "->", rhsPretty]
-        |> sequence
-        |> vsep
-        |> maybeTypParen prevPrecAssoc
+
+      let res =
+            [lhsPretty <+> "->", rhsPretty]
+              |> sequence
+              |> vsep
+              |> maybeTypParen prevPrecAssoc
+
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec == arrowPrec then res else grouped res
 
 instance Pretty Row where
-  pretty Row { label, typ } = pretty label <+> colon <+> align (pretty typ)
+  pretty Row { label, typ } =
+    pretty label <+> colon <+> grouped (align $ pretty typ)
 
 appPrec :: Int
 appPrec = 3

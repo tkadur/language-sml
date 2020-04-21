@@ -31,7 +31,7 @@ instance Pretty Expr where
   pretty = \case
     Lit    lit   -> pretty lit
     Ident  ident -> pretty ident
-    Record rows  -> record (mapM pretty rows)
+    Record rows  -> record (mapM (grouped . pretty) rows)
     RecordSelector label -> startsWith "#" <> pretty label
     Tuple  exprs -> tupled (mapM (grouped . pretty) exprs)
     List   exprs -> list (mapM (grouped . pretty) exprs)
@@ -46,7 +46,7 @@ instance Pretty Expr where
         , nest
           (line <> (sequenced . mapM (grouped . pretty) $ NonEmpty.toList exprs))
         , line
-        , "end"
+        , endsWith "end"
         ]
         |> sequence
         |> hcat
