@@ -20,6 +20,7 @@ import           Language.Sml.Pretty.Internal.Basic
                                                 )
 import qualified Language.Sml.Pretty.Internal.Printers.Toplevel
                                                as Toplevel
+                                                ( )
 
 data Config =
   Config

@@ -6,7 +6,6 @@ import           Language.Sml.Ast.Associativity
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
 import           Language.Sml.Ast.Pat
-import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Pretty.Internal.Basic
 import           Language.Sml.Pretty.Internal.Printers.Identifier
                                                 ( )
