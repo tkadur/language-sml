@@ -67,13 +67,24 @@ instance Pretty Pat where
         prevPrecAssoc
         (grouped (pretty pat) <+> colon <+> grouped (align $ pretty typ))
 
-    As { ident, annot, as } -> undefined
+    As { ident, annot, as } ->
+      let annotPretty = case annot of
+            Nothing  -> emptyDoc
+            Just typ -> space <> colon <+> align (pretty typ)
+      in  pretty ident <> annotPretty <+> "as" <+> align (pretty as)
 
 instance Pretty Row where
   pretty = \case
     RowWild -> "..."
     Row { label, pat } -> pretty label <+> equals <+> grouped (pretty pat)
-    RowPun { ident, annot, as } -> undefined
+    RowPun { ident, annot, as } ->
+      let annotPretty = case annot of
+            Nothing  -> emptyDoc
+            Just typ -> space <> colon <+> align (pretty typ)
+          asPretty = case as of
+            Nothing  -> emptyDoc
+            Just pat -> space <> "as" <+> align (pretty pat)
+      in  pretty ident <> annotPretty <> asPretty
 
 appPrec :: Int
 appPrec = 10
