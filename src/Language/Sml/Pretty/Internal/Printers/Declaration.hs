@@ -72,7 +72,7 @@ instance Pretty Decl where
       let structureIdents = NonEmpty.toList strids
       in  startsWith "open" <+> alignsep (mapM pretty structureIdents)
 
-    Sequence decls -> vhard (mapM pretty decls)
+    Sequence decls -> prettyPreservingNewlines decls
 
     Infix { precedence, idents } ->
       let precedencePretty = case precedence of

@@ -15,6 +15,7 @@ module Language.Sml.Pretty.Internal.Basic
   , getTypPrecAssoc
   , setTypPrecAssoc
   , resetTypPrecAssoc
+  , prettyPreservingNewlines
   , record
   , list
   , tupled
@@ -45,8 +46,6 @@ module Language.Sml.Pretty.Internal.Basic
   , braces
   , line
   , line'
-  -- , lineNest
-  -- , softlineNest
   , softline
   , softline'
   , hardline
@@ -154,7 +153,6 @@ instance (Pretty a, Show a) => Pretty (Marked a) where
           else sep $ sequence [return pastPretty, pretty value]
     resetCurrentPosition
     return res
-
 
 instance Pretty Comments where
   -- Because comments are marked, pretty-printing the last one will
@@ -296,6 +294,24 @@ getCurrentPosition = head <<$>> nonEmpty <$> positions <$> get
 resetCurrentPosition :: DocState ()
 resetCurrentPosition =
   modify $ \cfg@Config {..} -> cfg { positions = drop 1 positions }
+
+-- Pretty print a list of marked things, leaving 1 newline between them.
+-- Wherever there were >1 newlines between things in the original text, leave
+-- 2 newlines between them
+prettyPreservingNewlines :: (Pretty a, Show a) => [Marked a] -> Doc ann
+prettyPreservingNewlines markeds = case markeds of
+  []       -> emptyDoc
+  [marked] -> pretty marked
+  marked1 : markeds'@(marked2 : _) ->
+    let end1 :: Int =
+            Positive.unPositive . Position.line $ Marked.endPosition marked1
+        start2 =
+            Positive.unPositive . Position.line $ Marked.startPosition marked2
+
+        marked1Pretty = if start2 - end1 <= 1
+          then pretty marked1 <> hardline
+          else pretty marked1 <> hardline <> hardline
+    in  marked1Pretty <> prettyPreservingNewlines markeds'
 
 encloseSep :: Doc ann -> Doc ann -> Doc ann -> DocList ann -> Doc ann
 encloseSep l r separator docs = l <> hcat (punctuate separator docs) <> r
@@ -472,14 +488,6 @@ line = adapt Doc.line
 
 line' :: Doc ann
 line' = adapt Doc.line'
-
-lineNest :: Doc ann
-lineNest = flatAlt (nest line) space
-
--- | @softlineNest@ behaves like @space@ if the resulting output fits the page,
---   otherwise like @indentation line@
-softlineNest :: Doc ann
-softlineNest = grouped $ flatAlt (nest line) space
 
 softline :: Doc ann
 softline = adapt Doc.softline
