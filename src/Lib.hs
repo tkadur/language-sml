@@ -2,11 +2,9 @@ module Lib where
 
 import           Language.Sml.Parser
 import           Language.Sml.Parser.Internal.FixityTable
-import           Language.Sml.Parser.Internal.Stream
 import           Language.Sml.Parser.DebugLevel
 import           Language.Sml.Lexer
 import           Language.Sml.Pretty
-import qualified Language.Sml.Pretty.Comments  as Comments
 
 test :: (Show a) => Parser a -> DebugLevel -> Text -> IO ()
 test parser debugLevel input = do

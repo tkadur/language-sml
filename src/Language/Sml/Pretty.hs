@@ -1,6 +1,5 @@
 module Language.Sml.Pretty
-  ( module Toplevel
-  , Pretty(..)
+  ( Pretty(..)
   , Config(..)
   , prettyPrint
   )
@@ -18,7 +17,25 @@ import           Language.Sml.Pretty.Internal.Basic
                                                 ( Pretty(..)
                                                 , evalDocState
                                                 )
-import qualified Language.Sml.Pretty.Internal.Printers.Toplevel
+import           Language.Sml.Pretty.Internal.Printers.Declaration
+                                               as Declaration
+                                                ( )
+import           Language.Sml.Pretty.Internal.Printers.Expression
+                                               as Expression
+                                                ( )
+import           Language.Sml.Pretty.Internal.Printers.Identifier
+                                               as Identifier
+                                                ( )
+import           Language.Sml.Pretty.Internal.Printers.Literal
+                                               as Literal
+                                                ( )
+import           Language.Sml.Pretty.Internal.Printers.Pattern
+                                               as Pattern
+                                                ( )
+import           Language.Sml.Pretty.Internal.Printers.Type
+                                               as Type
+                                                ( )
+import           Language.Sml.Pretty.Internal.Printers.Toplevel
                                                as Toplevel
                                                 ( )
 
