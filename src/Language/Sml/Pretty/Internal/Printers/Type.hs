@@ -16,9 +16,15 @@ import           Language.Sml.Pretty.Internal.Printers.Identifier
 
 instance Pretty Typ where
   pretty = \case
-    TyVar  tyvar -> pretty tyvar
-    Record rows  -> record (mapM pretty rows)
-    TyCon  tycon -> pretty tycon
+    TyVar tyvar -> do
+      resetTypPrecAssoc
+      pretty tyvar
+    Record rows -> do
+      resetTypPrecAssoc
+      record (mapM pretty rows)
+    TyCon tycon -> do
+      resetTypPrecAssoc
+      pretty tycon
 
     App { tycons, args } ->
       grouped
@@ -40,17 +46,16 @@ instance Pretty Typ where
       prevPrecAssoc <- getTypPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = tuplePrec
                                    , associativity = tupleAssoc
-                                   , direction     = Associativity.Right
+                                   , direction     = Associativity.Left
                                    }
       setTypPrecAssoc newPrecAssoc
 
       let res =
             typs
               |> NonEmpty.toList
-              |> mapM pretty
+              |> mapM ((setTypPrecAssoc newPrecAssoc >>) . pretty)
               |> punctuate " *"
               |> vsep
-              |> (setTypPrecAssoc newPrecAssoc >>)
               |> maybeTypParen prevPrecAssoc
 
       case prevPrecAssoc of
@@ -99,9 +104,9 @@ appAssoc = Associativity.Left
 tuplePrec :: Int
 tuplePrec = 2
 
--- | Nonsense dummy value
+-- Nonsense placeholder value
 tupleAssoc :: Associativity
-tupleAssoc = Associativity.Left
+tupleAssoc = Associativity.Right
 
 arrowPrec :: Int
 arrowPrec = 1

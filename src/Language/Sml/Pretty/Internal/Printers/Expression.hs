@@ -29,16 +29,31 @@ import           Language.Sml.Pretty.Internal.Printers.Type
 
 instance Pretty Expr where
   pretty = \case
-    Lit    lit   -> pretty lit
-    Ident  ident -> pretty ident
-    Record rows  -> record (mapM (grouped . pretty) rows)
-    RecordSelector label -> startsWith "#" <> pretty label
-    Tuple  exprs -> tupled (mapM (grouped . pretty) exprs)
-    List   exprs -> list (mapM (grouped . pretty) exprs)
-    Sequence exprs ->
+    Lit lit -> do
+      resetExprPrecAssoc
+      pretty lit
+    Ident ident -> do
+      resetExprPrecAssoc
+      pretty ident
+    Record rows -> do
+      resetExprPrecAssoc
+      record (mapM (grouped . pretty) rows)
+    RecordSelector label -> do
+      resetExprPrecAssoc
+      startsWith "#" <> pretty label
+    Tuple exprs -> do
+      resetExprPrecAssoc
+      tupled (mapM (grouped . pretty) exprs)
+    List exprs -> do
+      resetExprPrecAssoc
+      list (mapM (grouped . pretty) exprs)
+    Sequence exprs -> do
+      resetExprPrecAssoc
       parenSequenced (mapM (grouped . pretty) $ NonEmpty.toList exprs)
 
-    Let { decl, exprs } ->
+    Let { decl, exprs } -> do
+      resetExprPrecAssoc
+
       [ startsWith "let"
         , nest (line <> pretty decl)
         , line

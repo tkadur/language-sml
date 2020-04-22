@@ -80,7 +80,7 @@ nonfixLongValueIdentifier fixityTable = do
 
 -- | Parses a value identifier
 valueIdentifier :: (MonadParser parser) => parser MValueIdent
-valueIdentifier = ValueIdent.ValueIdent <<$>> identifier
+valueIdentifier = ValueIdent.ValueIdent <<$>> identifierOrEqual
 
 -- | Parses a structure identifier
 structureIdentifier :: (MonadParser parser) => parser MStructureIdent
@@ -143,18 +143,22 @@ long p = dbg ["longIdentifier"] . marked $ do
 identifier :: (MonadParser parser) => parser (Marked Text)
 identifier = alphanumeric <|> symbolic
 
+identifierOrEqual :: (MonadParser parser) => parser (Marked Text)
+identifierOrEqual = alphanumeric <|> symbolic <|> marked
+  (tokenWith $ \case
+    Token.Equal -> Just "="
+    _           -> Nothing
+  )
+
 -- | Alphanumeric identifiers
 alphanumeric :: (MonadParser parser) => parser (Marked Text)
-alphanumeric = dbg ["alphanumeric"] . marked $ tokenWith
-  (\case
-    Token.Alphanumeric s -> Just s
-    _ -> Nothing
-  )
+alphanumeric = dbg ["alphanumeric"] . marked . tokenWith $ \case
+  Token.Alphanumeric s -> Just s
+  _ -> Nothing
+
 
 -- | Symbolic identifiers
 symbolic :: (MonadParser parser) => parser (Marked Text)
-symbolic = dbg ["symbolic"] . marked $ tokenWith
-  (\case
-    Token.Symbolic s -> Just s
-    _ -> Nothing
-  )
+symbolic = dbg ["symbolic"] . marked . tokenWith $ \case
+  Token.Symbolic s -> Just s
+  _ -> Nothing

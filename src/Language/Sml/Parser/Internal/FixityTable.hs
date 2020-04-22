@@ -219,12 +219,17 @@ basisFixityTable = FixityTable
 infixExprOperator :: Precedence -> Associativity -> Text -> TableEntry
 infixExprOperator precedence associativity name =
   ( ValueIdent.ValueIdent name
-  , operator (pat <$> separator)
+    -- Hack to deal with "=" not being allowed in patterns
+  , operator $ case name of
+    "=" -> never
+    _   -> pat <$> separator
   , operator (expr <$> separator)
   )
  where
-  separator =
-    marked $ token_ (Token.Alphanumeric name) <|> token_ (Token.Symbolic name)
+  -- Hack to deal "="" being a special token
+  separator = marked $ case name of
+    "=" -> token_ Token.Equal
+    _   -> token_ (Token.Alphanumeric name) <|> token_ (Token.Symbolic name)
 
   expr sep lhs rhs = Marked.merge
     lhs
