@@ -12,7 +12,7 @@ import           Language.Sml.Pretty.Internal.Basic
 import           Language.Sml.Pretty.Internal.Printers.Identifier
                                                 ( )
 
--- See Expression.hs of explanation of grouping
+-- See Expression.hs of explanation of grouping logic
 
 instance Pretty Typ where
   pretty = \case

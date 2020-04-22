@@ -25,6 +25,11 @@ import           Language.Sml.Pretty.Internal.Printers.Type
 -- the corresponding AST. So we insert @grouped@ for pretty-printing nested @Expr@s
 -- everywhere except for those "homogeneous" cases. In those cases, we insert @grouped@
 -- only if the parent expression is of the same form.
+
+-- Only don't group along with pretty when
+--  - You want to group a big chunk at a time (see above)
+--  - You know the thing being pretty-printed has no groupable newlines
+
 -- TODO(tkadur) Grouping management in general is a massive hack. Do it better.
 
 instance Pretty Expr where
@@ -125,8 +130,9 @@ instance Pretty Expr where
                                  , associativity = annotAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen prevPrecAssoc
-                     (grouped (pretty expr) <+> colon <+> align (pretty typ))
+      maybeExprParen
+        prevPrecAssoc
+        (grouped (pretty expr) <+> colon <+> grouped (align $ pretty typ))
 
     Andalso { lhs, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -145,10 +151,15 @@ instance Pretty Expr where
 
       setExprPrecAssoc newPrecAssoc
 
-      [lhsPretty, "andalso", rhsPretty]
-        |> sequence
-        |> vsep
-        |> maybeExprParen prevPrecAssoc
+      let res =
+            [lhsPretty, "andalso" <+> rhsPretty]
+              |> sequence
+              |> vsep
+              |> maybeExprParen prevPrecAssoc
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec `elem` [orelsePrec, andalsoPrec] then res else grouped res
 
     Orelse { lhs, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -167,10 +178,15 @@ instance Pretty Expr where
 
       setExprPrecAssoc newPrecAssoc
 
-      [lhsPretty, "orelse", rhsPretty]
-        |> sequence
-        |> vsep
-        |> maybeExprParen prevPrecAssoc
+      let res =
+            [lhsPretty, "orelse", rhsPretty]
+              |> sequence
+              |> vsep
+              |> maybeExprParen prevPrecAssoc
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec `elem` [orelsePrec, andalsoPrec] then res else grouped res
 
     Handle { expr, match } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -278,7 +294,7 @@ instance Pretty Match where
 
 instance Pretty MatchArm where
   pretty MatchArm { lhs, rhs } =
-    pretty lhs <+> "=>" <> grouped (nest $ line <> pretty rhs)
+    pretty lhs <+> "=>" <> grouped (nest $ line <> grouped (pretty rhs))
 
 appPrec :: Int
 appPrec = 10

@@ -62,6 +62,8 @@ where
 import           Data.Foldable                  ( foldr1 )
 import qualified Data.Text                     as Text
 import qualified Data.Text.Prettyprint.Doc     as Doc
+import qualified Data.Text.Prettyprint.Doc.Internal
+                                               as Doc.Internal
 
 import           Language.Sml.Ast.Associativity ( Associativity )
 import           Language.Sml.Common.Marked     ( Marked )
@@ -170,16 +172,17 @@ instance Pretty Comments.Comment where
     setCurrentPosition
       (Marked.startPosition markedComment, Marked.endPosition markedComment)
 
-    let body =
-          markedComment
-            |> Marked.value
-            |> Text.splitOn "\n"
-            -- Pretty print each line, forcing newlines between them
-            |> mapM pretty
-            |> vhard
+    -- Terrible back to get comments to get printed exactly as in the source
+    let body = unsafeTextWithoutNewlines (Marked.value markedComment)
     res <- hcat $ sequence ["(*", body, "*)"]
     resetCurrentPosition
     return res
+   where
+    unsafeTextWithoutNewlines :: Text -> Doc ann
+    unsafeTextWithoutNewlines text = return $ case Text.uncons text of
+      Nothing -> Doc.Internal.Empty
+      Just (t, ext) | Text.null ext -> Doc.Internal.Char t
+                    | otherwise     -> Doc.Internal.Text (Text.length text) text
 
 flushAndReturnCommentsBefore :: Marked a -> DocState (Comments, Doc.Doc ann)
 flushAndReturnCommentsBefore marked = do

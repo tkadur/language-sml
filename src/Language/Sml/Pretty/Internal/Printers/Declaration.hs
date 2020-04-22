@@ -22,6 +22,8 @@ import           Language.Sml.Pretty.Internal.Printers.Pattern
 import           Language.Sml.Pretty.Internal.Printers.Type
                                                 ( )
 
+-- See Expression.hs for explanation of grouping logic.
+
 instance Pretty Decl where
   -- It's safe to blanket group @Decl@s since they don't need to consolidate
   -- chunks of the AST like @Expr@s/@Pat@s/@Typ@s
@@ -65,7 +67,6 @@ instance Pretty Decl where
             <>  hardline
             <>  "end"
 
-
     Exception { exnbinds } -> startsWith "exception" <+> binds exnbinds
 
     Local { decl, body } ->
@@ -108,7 +109,8 @@ instance Pretty Decl where
 
 instance Pretty ValBind where
   pretty ValBind { isRec, lhs, rhs } =
-    recPretty <> nest (pretty lhs) <+> equals <> nest (line <> pretty rhs)
+    recPretty <> grouped (nest $ pretty lhs) <+> equals <> grouped
+      (nest $ line <> pretty rhs)
     where recPretty = if isRec then startsWith "rec " else emptyDoc
 
 instance Pretty FunBind where
@@ -138,9 +140,9 @@ instance Pretty FunClause where
           -- There may not be a return type, so we need to handle spacing
           returnTypPretty = case returnTyp of
             Nothing  -> emptyDoc
-            Just typ -> space <> colon <+> align (pretty typ)
+            Just typ -> space <> colon <+> grouped (align $ pretty typ)
 
-          bodyPretty = grouped (nest $ line <> pretty body)
+          bodyPretty = grouped $ nest (line <> grouped (pretty body))
       in  infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
@@ -149,9 +151,9 @@ instance Pretty FunClause where
             -- There may not be a return type, so we need to handle spacing
           returnTypPretty = case returnTyp of
             Nothing  -> emptyDoc
-            Just typ -> space <> colon <+> align (pretty typ)
+            Just typ -> space <> colon <+> grouped (align $ pretty typ)
 
-          bodyPretty = grouped (nest $ line <> pretty body)
+          bodyPretty = grouped $ nest (line <> grouped (pretty body))
       in  pretty nonfixName
             <+> argsPretty
             <>  returnTypPretty
@@ -166,7 +168,7 @@ instance Pretty FunClause where
                                  , associativity = Associativity.Left
                                  , direction     = Associativity.Right
                                  }
-      res <- pretty arg
+      res <- grouped (pretty arg)
       resetExprPrecAssoc
       return res
 
@@ -205,8 +207,9 @@ instance Pretty DatBind where
 instance Pretty ConBind where
   pretty ConBind { constructor, arg } =
     let prettyArg = case arg of
-          Nothing  -> emptyDoc
-          Just typ -> space <> "of" <> grouped (nest $ line <> pretty typ)
+          Nothing -> emptyDoc
+          Just typ ->
+            space <> "of" <> grouped (nest $ line <> grouped (pretty typ))
     in  pretty constructor <> prettyArg
 
 instance Pretty ExnBind where
@@ -216,7 +219,7 @@ instance Pretty ExnBind where
     ExnBind { constructor, arg } ->
       let prettyArg = case arg of
             Nothing  -> emptyDoc
-            Just typ -> space <> "of" <+> pretty typ
+            Just typ -> space <> "of" <+> grouped (pretty typ)
       in  pretty constructor <> prettyArg
     ExnReplication { new, old } -> pretty new <+> equals <+> pretty old
 

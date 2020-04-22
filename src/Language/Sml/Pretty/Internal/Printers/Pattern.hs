@@ -18,12 +18,24 @@ import           Language.Sml.Pretty.Internal.Printers.Type
 
 instance Pretty Pat where
   pretty = \case
-    Wild         -> "_"
-    Lit    lit   -> pretty lit
-    Ident  ident -> pretty ident
-    Record rows  -> record $ mapM pretty rows
-    Tuple  pats  -> tupled $ mapM (grouped . pretty) pats
-    List   pats  -> list $ mapM (grouped . pretty) pats
+    Wild -> do
+      resetExprPrecAssoc
+      "_"
+    Lit lit -> do
+      resetExprPrecAssoc
+      pretty lit
+    Ident ident -> do
+      resetExprPrecAssoc
+      pretty ident
+    Record rows -> do
+      resetExprPrecAssoc
+      record $ mapM pretty rows
+    Tuple pats -> do
+      resetExprPrecAssoc
+      tupled $ mapM (grouped . pretty) pats
+    List pats -> do
+      resetExprPrecAssoc
+      list $ mapM (grouped . pretty) pats
 
     Constructed { constructor, arg } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -31,8 +43,9 @@ instance Pretty Pat where
                                  , associativity = appAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen prevPrecAssoc
-                     (pretty constructor <> line <> hang (pretty arg))
+      maybeExprParen
+        prevPrecAssoc
+        (pretty constructor <> line <> grouped (hang $ pretty arg))
 
     InfixConstructed { lhs, op, precedence, associativity, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -50,11 +63,16 @@ instance Pretty Pat where
       let rhsPretty = return rhsDoc
 
       setTypPrecAssoc newPrecAssoc
-      [lhsPretty, space, pretty op, line, rhsPretty]
-        |> sequence
-        |> hcat
-        |> align
-        |> maybeTypParen prevPrecAssoc
+      let res =
+            [lhsPretty, space, pretty op, line, rhsPretty]
+              |> sequence
+              |> hcat
+              |> align
+              |> maybeTypParen prevPrecAssoc
+      case prevPrecAssoc of
+        Nothing -> res
+        Just PrecAssoc { precedence = prevPrec } ->
+          if prevPrec `elem` [0 .. 9] then res else grouped res
 
     Annot { pat, typ } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -66,11 +84,20 @@ instance Pretty Pat where
         prevPrecAssoc
         (grouped (pretty pat) <+> colon <+> grouped (align $ pretty typ))
 
-    As { ident, annot, as } ->
+    As { ident, annot, as } -> do
+      prevPrecAssoc <- getExprPrecAssoc
+      setExprPrecAssoc PrecAssoc { precedence    = asPrec
+                                 , associativity = asAssoc
+                                 , direction     = Associativity.Right
+                                 }
+
       let annotPretty = case annot of
             Nothing  -> emptyDoc
             Just typ -> space <> colon <+> align (pretty typ)
-      in  pretty ident <> annotPretty <+> "as" <+> align (pretty as)
+
+      maybeExprParen
+        prevPrecAssoc
+        (pretty ident <> annotPretty <+> "as" <+> grouped (align $ pretty as))
 
 instance Pretty Row where
   pretty = \case
@@ -79,10 +106,10 @@ instance Pretty Row where
     RowPun { ident, annot, as } ->
       let annotPretty = case annot of
             Nothing  -> emptyDoc
-            Just typ -> space <> colon <+> align (pretty typ)
+            Just typ -> space <> colon <+> grouped (align $ pretty typ)
           asPretty = case as of
             Nothing  -> emptyDoc
-            Just pat -> space <> "as" <+> align (pretty pat)
+            Just pat -> space <> "as" <+> grouped (align $ pretty pat)
       in  pretty ident <> annotPretty <> asPretty
 
 appPrec :: Int
@@ -96,3 +123,9 @@ annotPrec = -1
 
 annotAssoc :: Associativity
 annotAssoc = Associativity.Right
+
+asPrec :: Int
+asPrec = -2
+
+asAssoc :: Associativity
+asAssoc = Associativity.Left
