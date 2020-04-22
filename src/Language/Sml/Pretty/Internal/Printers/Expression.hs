@@ -263,7 +263,7 @@ instance Pretty Match where
 
 instance Pretty MatchArm where
   pretty MatchArm { lhs, rhs } =
-    pretty lhs <+> "=>" <> grouped (nest . nest $ line <> pretty rhs)
+    pretty lhs <+> "=>" <> grouped (nest $ line <> pretty rhs)
 
 appPrec :: Int
 appPrec = 10

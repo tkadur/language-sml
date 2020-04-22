@@ -52,7 +52,19 @@ instance Pretty Decl where
       startsWith "datatype" <+> pretty new <+> equals <> grouped
         (nest $ line <> "datatype" <+> pretty old)
 
-    Abstype { datbinds, withtype, decl } -> undefined
+    Abstype { datbinds, withtype, decl } ->
+      let withtypePretty = case withtype of
+            Nothing       -> emptyDoc
+            Just typbinds -> hardline <> withtypeBinds typbinds
+      in  startsWith "abstype"
+            <+> binds datbinds
+            <>  withtypePretty
+            <>  hardline
+            <>  "with"
+            <>  nest (hardline <> pretty decl)
+            <>  hardline
+            <>  "end"
+
 
     Exception { exnbinds } -> startsWith "exception" <+> binds exnbinds
 
@@ -128,7 +140,7 @@ instance Pretty FunClause where
             Nothing  -> emptyDoc
             Just typ -> space <> colon <+> align (pretty typ)
 
-          bodyPretty = grouped (nest . nest $ line <> pretty body)
+          bodyPretty = grouped (nest $ line <> pretty body)
       in  infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
@@ -139,7 +151,7 @@ instance Pretty FunClause where
             Nothing  -> emptyDoc
             Just typ -> space <> colon <+> align (pretty typ)
 
-          bodyPretty = grouped (nest . nest $ line <> pretty body)
+          bodyPretty = grouped (nest $ line <> pretty body)
       in  pretty nonfixName
             <+> argsPretty
             <>  returnTypPretty
@@ -170,13 +182,43 @@ instance Pretty TypBind where
       _       -> tupled (mapM pretty tyvars) <> space
 
 instance Pretty DatBind where
-  pretty DatBind { tyvars, tycon, conbinds } = undefined
+  pretty DatBind { tyvars, tycon, conbinds } =
+    tyvarsPretty <> pretty tycon <> conbindsPretty
+   where
+    conbindsPretty =
+      conbinds
+        |> NonEmpty.toList
+        |> mapM pretty
+        |> punctuate' "| "
+        |> vsep
+        -- Slight hack to get = to line up with |
+        |> ((line <> equals) <+>)
+        |> nest
+        |> grouped
+
+     -- Deal with parenthesization and spacing of 0, 1, or many tyvars
+    tyvarsPretty = case tyvars of
+      []      -> emptyDoc
+      [tyvar] -> pretty tyvar <> space
+      _       -> tupled (mapM pretty tyvars) <> space
 
 instance Pretty ConBind where
-  pretty ConBind { constructor, arg } = undefined
+  pretty ConBind { constructor, arg } =
+    let prettyArg = case arg of
+          Nothing  -> emptyDoc
+          Just typ -> space <> "of" <> grouped (nest $ line <> pretty typ)
+    in  pretty constructor <> prettyArg
 
 instance Pretty ExnBind where
-  pretty = undefined
+  -- Unlike with conbinds, in case an exnbind doesn't fit on a line
+  -- we want to nest the entire exnbind on the next line
+  pretty = grouped . nest . (line' <>) . \case
+    ExnBind { constructor, arg } ->
+      let prettyArg = case arg of
+            Nothing  -> emptyDoc
+            Just typ -> space <> "of" <+> pretty typ
+      in  pretty constructor <> prettyArg
+    ExnReplication { new, old } -> pretty new <+> equals <+> pretty old
 
 binds :: (Pretty a, Show a) => NonEmpty (Marked a) -> Doc ann
 binds = \case
