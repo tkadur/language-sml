@@ -393,8 +393,8 @@ punctuate' p docs = do
   -- depending on if the original input is a singleton.
   go start p' docs' = case docs' of
     [] -> []
-    [d'] -> if start then [d'] else [p' <> d']
-    d1' : d2' : ds' -> d1' : (p' <> d2') : go False p' ds'
+    d1' : ds' ->
+      if start then d1' : go False p' ds' else (p' <> d1') : go False p' ds'
 
 nest :: Doc ann -> Doc ann
 nest doc = do
