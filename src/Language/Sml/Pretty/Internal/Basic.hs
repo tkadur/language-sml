@@ -391,12 +391,14 @@ punctuate' :: Doc ann -> DocList ann -> DocList ann
 punctuate' p docs = do
   p'    <- p
   docs' <- docs
-  return (go p' docs')
+  return (go True p' docs')
  where
-  go p' docs' = case docs' of
+  -- @start@ is because we need to handle the singleton case differently
+  -- depending on if the original input is a singleton.
+  go start p' docs' = case docs' of
     [] -> []
-    [d'] -> [d']
-    d1' : d2' : ds' -> d1' : (p' <> d2') : go p' ds'
+    [d'] -> if start then [d'] else [p' <> d']
+    d1' : d2' : ds' -> d1' : (p' <> d2') : go False p' ds'
 
 nest :: Doc ann -> Doc ann
 nest doc = do

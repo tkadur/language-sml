@@ -20,8 +20,10 @@ import qualified Language.Sml.Parser.DebugLevel
 import qualified Language.Sml.Pretty           as Pretty
 
 newtype Comments = Comments [Marked Lexer.Comment]
+  deriving (Eq, Show)
 
 data Lexed = Lexed FilePath Text [Marked Lexer.Token.Token]
+  deriving (Eq, Show)
 
 type Parsed = Toplevel
 
