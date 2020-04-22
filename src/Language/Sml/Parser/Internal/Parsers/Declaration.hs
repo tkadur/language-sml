@@ -5,7 +5,7 @@ where
 
 import           Control.Monad.Combinators      ( choice
                                                 , many
-                                                , sepBy
+                                                , sepEndBy
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( some )
@@ -64,15 +64,10 @@ declaration :: (MonadParser parser, MonadState FixityTable parser)
             => parser MDecl
 declaration = dbg ["declaration"] $ do
     -- Handle declaration sequences
-  decls <-
-    marked
-    $  (declaration' `sepBy` (token_ Token.Semicolon <|> nothing))
-    -- Optional trailing semicolon
-    << optional (token_ Token.Semicolon)
-
-  case Marked.value decls of
+  decls <- declaration' `sepEndBy` (token_ Token.Semicolon <|> nothing)
+  case decls of
     [decl] -> return decl
-    _      -> return (Decl.Sequence <$> decls)
+    _      -> marked . return $ Decl.Sequence decls
  where
   declaration' = choice
     [ val
