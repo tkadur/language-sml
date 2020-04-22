@@ -170,17 +170,10 @@ instance Pretty Comments.Comment where
     setCurrentPosition
       (Marked.startPosition markedComment, Marked.endPosition markedComment)
 
-    let removeBlankLines = dropWhile (== "")
     let body =
           markedComment
             |> Marked.value
             |> Text.splitOn "\n"
-            -- Remove leading blank lines
-            |> removeBlankLines
-            -- Remove trailing blank lines
-            |> reverse
-            |> removeBlankLines
-            |> reverse
             -- Pretty print each line, forcing newlines between them
             |> mapM pretty
             |> vhard
