@@ -19,9 +19,11 @@ instance Pretty Typ where
     TyVar tyvar -> do
       resetTypPrecAssoc
       pretty tyvar
+
     Record rows -> do
       resetTypPrecAssoc
       record (mapM pretty rows)
+
     TyCon tycon -> do
       resetTypPrecAssoc
       pretty tycon
@@ -48,8 +50,8 @@ instance Pretty Typ where
                                    , associativity = tupleAssoc
                                    , direction     = Associativity.Left
                                    }
-      setTypPrecAssoc newPrecAssoc
 
+      setTypPrecAssoc newPrecAssoc
       let res =
             typs
               |> NonEmpty.toList
@@ -75,7 +77,6 @@ instance Pretty Typ where
       let rhsPretty = return rhsDoc
 
       setTypPrecAssoc newPrecAssoc
-
       let res =
             [lhsPretty <+> "->", rhsPretty]
               |> sequence

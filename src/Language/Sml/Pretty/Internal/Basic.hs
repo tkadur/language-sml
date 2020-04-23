@@ -7,8 +7,11 @@ module Language.Sml.Pretty.Internal.Basic
   , getIndent
   , startsWith
   , endsWith
+  , maybeExprPatternMatchingParen
   , maybeExprParen
   , maybeTypParen
+  , getPatternMatching
+  , setPatternMatching
   , getExprPrecAssoc
   , setExprPrecAssoc
   , resetExprPrecAssoc
@@ -83,6 +86,9 @@ data Config
     , positions :: [(Position, Position)]
     , exprPrecAssoc :: Maybe PrecAssoc
     , typPrecAssoc :: Maybe PrecAssoc
+    -- Keep track of whether we're currently pretty-printing a pattern match
+    -- Needed to properly parenthesize nested pattern matching
+    , patternMatching :: Bool
     }
   deriving (Show)
 
@@ -103,9 +109,10 @@ evalDocState indentation comments docState = evalState
   (unDocState $ flushRemainingComments docState)
   (Config { comments
           , indentation
-          , positions     = []
-          , exprPrecAssoc = Nothing
-          , typPrecAssoc  = Nothing
+          , positions       = []
+          , exprPrecAssoc   = Nothing
+          , typPrecAssoc    = Nothing
+          , patternMatching = False
           }
   )
  where
@@ -216,8 +223,16 @@ endsWith end = do
                                                }
 
 -- | @maybeExprParen prevPrecAssoc doc = doc'@
---   where @doc'@ might be parenthesized based on
---   @prevPrecAssoc@ and the current value of @exprPrecAssoc@.
+--   where @doc'@ might be parenthesized based on  @prevPrecAssoc@,
+--   @prevPatternMatching@, and the current value of @exprPrecAssoc@.
+maybeExprPatternMatchingParen :: Maybe PrecAssoc -> Bool -> Doc ann -> Doc ann
+maybeExprPatternMatchingParen prevPrecAssoc prevPatternMatching doc =
+  (if prevPatternMatching then parens doc else maybeExprParen prevPrecAssoc doc)
+    << setPatternMatching False
+
+-- | @maybeExprParen prevPrecAssoc doc = doc'@
+--   where @doc'@ might be parenthesized based on @prevPrecAssoc@ and
+--   the current value of @exprPrecAssoc@.
 maybeExprParen :: Maybe PrecAssoc -> Doc ann -> Doc ann
 maybeExprParen prevPrecAssoc doc =
   maybeParen getExprPrecAssoc prevPrecAssoc doc << resetExprPrecAssoc
@@ -255,6 +270,12 @@ maybeParen getPrecAssoc prevPrecAssoc doc = do
           (EQ, True, True) -> doc
           -- Otherwise, we need parens
           _ -> parens doc
+
+setPatternMatching :: Bool -> DocState ()
+setPatternMatching b = modify $ \cfg -> cfg { patternMatching = b }
+
+getPatternMatching :: DocState Bool
+getPatternMatching = patternMatching <$> get
 
 getExprPrecAssoc :: DocState (Maybe PrecAssoc)
 getExprPrecAssoc = exprPrecAssoc <$> get

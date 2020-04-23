@@ -36,28 +36,42 @@ instance Pretty Expr where
   pretty = \case
     Lit lit -> do
       resetExprPrecAssoc
+      setPatternMatching False
       pretty lit
+
     Ident ident -> do
       resetExprPrecAssoc
+      setPatternMatching False
       pretty ident
+
     Record rows -> do
       resetExprPrecAssoc
+      setPatternMatching False
       record (mapM (grouped . pretty) rows)
+
     RecordSelector label -> do
       resetExprPrecAssoc
+      setPatternMatching False
       startsWith "#" <> pretty label
+
     Tuple exprs -> do
       resetExprPrecAssoc
+      setPatternMatching False
       tupled (mapM (grouped . pretty) exprs)
+
     List exprs -> do
       resetExprPrecAssoc
+      setPatternMatching False
       list (mapM (grouped . pretty) exprs)
+
     Sequence exprs -> do
       resetExprPrecAssoc
+      setPatternMatching False
       parenSequenced (mapM (grouped . pretty) $ NonEmpty.toList exprs)
 
     Let { decl, exprs } -> do
       resetExprPrecAssoc
+      setPatternMatching False
 
       [ startsWith "let"
         , nest (line <> pretty decl)
@@ -72,6 +86,7 @@ instance Pretty Expr where
         |> hcat
 
     App { lhs, rhs } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = appPrec
                                    , associativity = appAssoc
@@ -94,6 +109,7 @@ instance Pretty Expr where
       groupedIf prevPrecAssoc (== appPrec) res
 
     InfixApp { lhs, op, precedence, associativity, rhs } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence
                                    , associativity
@@ -119,6 +135,7 @@ instance Pretty Expr where
       groupedIf prevPrecAssoc (`elem` [0 .. 9]) res
 
     Annot { expr, typ } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = annotPrec
                                  , associativity = annotAssoc
@@ -129,6 +146,7 @@ instance Pretty Expr where
         (grouped (pretty expr) <+> colon <+> grouped (align $ pretty typ))
 
     Andalso { lhs, rhs } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = andalsoPrec
                                    , associativity = andalsoAssoc
@@ -153,6 +171,7 @@ instance Pretty Expr where
       groupedIf prevPrecAssoc (`elem` [orelsePrec, andalsoPrec]) res
 
     Orelse { lhs, rhs } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = orelsePrec
                                    , associativity = orelseAssoc
@@ -177,15 +196,21 @@ instance Pretty Expr where
       groupedIf prevPrecAssoc (`elem` [orelsePrec, andalsoPrec]) res
 
     Handle { expr, match } -> do
+      prevPatternMatching <- getPatternMatching
+      setPatternMatching False
+
       prevPrecAssoc <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = handlePrec
                                  , associativity = handleAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen prevPrecAssoc
-                     (grouped (pretty expr) <+> "handle" <+> pretty match)
+      maybeExprPatternMatchingParen
+        prevPrecAssoc
+        prevPatternMatching
+        (grouped (pretty expr) <+> "handle" <+> pretty match)
 
     Raise expr -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = raisePrec
                                  , associativity = raiseAssoc
@@ -193,7 +218,9 @@ instance Pretty Expr where
                                  }
       maybeExprParen prevPrecAssoc
                      (startsWith "raise" <+> grouped (pretty expr))
+
     If { cond, ifExpr, elseExpr } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = ifPrec
                                    , associativity = ifAssoc
@@ -226,6 +253,7 @@ instance Pretty Expr where
         |> maybeExprParen prevPrecAssoc
 
     While { cond, body } -> do
+      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = whilePrec
                                    , associativity = whileAssoc
@@ -248,30 +276,42 @@ instance Pretty Expr where
 
 
     Case { expr, match } -> do
+      prevPatternMatching <- getPatternMatching
+      setPatternMatching False
+
       prevPrecAssoc <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = casePrec
                                  , associativity = caseAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen
+      maybeExprPatternMatchingParen
         prevPrecAssoc
+        prevPatternMatching
         (startsWith "case" <+> grouped (pretty expr) <+> "of" <> nest
           (hardline <> pretty match)
         )
+
     Fn { match } -> do
+      prevPatternMatching <- getPatternMatching
+      setPatternMatching False
+
+
       prevPrecAssoc <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = fnPrec
                                  , associativity = fnAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen prevPrecAssoc (startsWith "fn" <+> align (pretty match))
+      maybeExprPatternMatchingParen prevPrecAssoc
+                                    prevPatternMatching
+                                    (startsWith "fn" <+> align (pretty match))
 
 instance Pretty Row where
   pretty Row { label, expr } =
     pretty label <+> equals <+> (align . grouped $ pretty expr)
 
 instance Pretty Match where
-  pretty arms =
+  pretty arms = do
+    setPatternMatching True
     arms
       |> NonEmpty.toList
       |> mapM pretty

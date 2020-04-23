@@ -142,7 +142,9 @@ instance Pretty FunClause where
             Nothing  -> emptyDoc
             Just typ -> space <> colon <+> grouped (align $ pretty typ)
 
-          bodyPretty = grouped $ nest (line <> grouped (pretty body))
+          bodyPretty = do
+            setPatternMatching True
+            grouped $ nest (line <> grouped (pretty body))
       in  infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
@@ -153,7 +155,9 @@ instance Pretty FunClause where
             Nothing  -> emptyDoc
             Just typ -> space <> colon <+> grouped (align $ pretty typ)
 
-          bodyPretty = grouped $ nest (line <> grouped (pretty body))
+          bodyPretty = do
+            setPatternMatching True
+            grouped $ nest (line <> grouped (pretty body))
       in  pretty nonfixName
             <+> argsPretty
             <>  returnTypPretty
