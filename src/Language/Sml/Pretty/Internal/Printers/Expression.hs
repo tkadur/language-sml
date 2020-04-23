@@ -88,13 +88,10 @@ instance Pretty Expr where
 
       setExprPrecAssoc newPrecAssoc
 
-      -- Only group together @App@ when not coming from another @App@
       let res = maybeExprParen prevPrecAssoc
                                (lhsPretty <> nest (line <> rhsPretty))
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec == appPrec then res else grouped res
+      -- Only group together @App@ when not coming from another @App@
+      groupedIf prevPrecAssoc (== appPrec) res
 
     InfixApp { lhs, op, precedence, associativity, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -113,16 +110,13 @@ instance Pretty Expr where
 
       setExprPrecAssoc newPrecAssoc
 
-      -- Only group together @App@ when not coming from another @App@
       let res =
             [lhsPretty, pretty op <+> rhsPretty]
               |> sequence
               |> vsep
               |> maybeExprParen prevPrecAssoc
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec `elem` [0 .. 9] then res else grouped res
+      -- Only group together @InfixApp@ when not coming from another @InfixApp@
+      groupedIf prevPrecAssoc (`elem` [0 .. 9]) res
 
     Annot { expr, typ } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -156,10 +150,7 @@ instance Pretty Expr where
               |> sequence
               |> vsep
               |> maybeExprParen prevPrecAssoc
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec `elem` [orelsePrec, andalsoPrec] then res else grouped res
+      groupedIf prevPrecAssoc (`elem` [orelsePrec, andalsoPrec]) res
 
     Orelse { lhs, rhs } -> do
       prevPrecAssoc <- getExprPrecAssoc
@@ -183,10 +174,7 @@ instance Pretty Expr where
               |> sequence
               |> vsep
               |> maybeExprParen prevPrecAssoc
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec `elem` [orelsePrec, andalsoPrec] then res else grouped res
+      groupedIf prevPrecAssoc (`elem` [orelsePrec, andalsoPrec]) res
 
     Handle { expr, match } -> do
       prevPrecAssoc <- getExprPrecAssoc

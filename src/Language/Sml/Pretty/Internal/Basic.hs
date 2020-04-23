@@ -16,6 +16,7 @@ module Language.Sml.Pretty.Internal.Basic
   , setTypPrecAssoc
   , resetTypPrecAssoc
   , prettyPreservingNewlines
+  , groupedIf
   , record
   , list
   , tupled
@@ -304,6 +305,15 @@ prettyPreservingNewlines markeds = case markeds of
           else pretty marked1 <> hardline <> hardline
     in  marked1Pretty <> prettyPreservingNewlines markeds'
 
+-- | @groupedIf prevPrecAssoc predicate doc =@
+--   - @grouped doc@ if the precedence of @prevPrecAssoc@ satisfied @predicate
+--   - @doc@ otherwise
+groupedIf :: Maybe PrecAssoc -> (Int -> Bool) -> Doc ann -> Doc ann
+groupedIf prevPrecAssoc predicate doc = case prevPrecAssoc of
+  Nothing -> doc
+  Just PrecAssoc { precedence = prevPrec } | predicate prevPrec -> grouped doc
+                                           | otherwise          -> doc
+
 encloseSep :: Doc ann -> Doc ann -> Doc ann -> DocList ann -> Doc ann
 encloseSep l r separator docs = l <> hcat (punctuate separator docs) <> r
 
@@ -387,9 +397,8 @@ punctuate' p docs = do
   -- @start@ is because we need to handle the singleton case differently
   -- depending on if the original input is a singleton.
   go start p' docs' = case docs' of
-    [] -> []
-    d1' : ds' ->
-      if start then d1' : go False p' ds' else (p' <> d1') : go False p' ds'
+    []        -> []
+    d1' : ds' -> (if start then d1' else p' <> d1') : go False p' ds'
 
 nest :: Doc ann -> Doc ann
 nest doc = do

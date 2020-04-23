@@ -57,11 +57,7 @@ instance Pretty Typ where
               |> punctuate " *"
               |> vsep
               |> maybeTypParen prevPrecAssoc
-
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec == tuplePrec then res else grouped res
+      groupedIf prevPrecAssoc (== tuplePrec) res
 
     Arrow { lhs, rhs } -> do
       prevPrecAssoc <- getTypPrecAssoc
@@ -85,11 +81,7 @@ instance Pretty Typ where
               |> sequence
               |> vsep
               |> maybeTypParen prevPrecAssoc
-
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec == arrowPrec then res else grouped res
+      groupedIf prevPrecAssoc (== tuplePrec) res
 
 instance Pretty Row where
   pretty Row { label, typ } =

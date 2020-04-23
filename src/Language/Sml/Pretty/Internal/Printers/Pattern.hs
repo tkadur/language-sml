@@ -63,16 +63,14 @@ instance Pretty Pat where
       let rhsPretty = return rhsDoc
 
       setTypPrecAssoc newPrecAssoc
+
       let res =
             [lhsPretty, space, pretty op, line, rhsPretty]
               |> sequence
               |> hcat
               |> align
               |> maybeTypParen prevPrecAssoc
-      case prevPrecAssoc of
-        Nothing -> res
-        Just PrecAssoc { precedence = prevPrec } ->
-          if prevPrec `elem` [0 .. 9] then res else grouped res
+      groupedIf prevPrecAssoc (`elem` [0 .. 9]) res
 
     Annot { pat, typ } -> do
       prevPrecAssoc <- getExprPrecAssoc

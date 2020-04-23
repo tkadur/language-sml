@@ -59,10 +59,11 @@ nonfixValueIdentifier :: (MonadParser parser)
 nonfixValueIdentifier fixityTable = do
   x <- op valueIdentifier
   case Marked.value x of
-    Op.Ident ident ->
-      if Marked.value ident `HashSet.member` FixityTable.operators fixityTable
-        then fail $ "unexpected infix identifier " ++ show ident
-        else return x
+    Op.Ident ident
+      | Marked.value ident `HashSet.member` FixityTable.operators fixityTable
+      -> fail $ "unexpected infix identifier " ++ show ident
+      | otherwise
+      -> return x
     _ -> return x
 
 -- | Parses a long value identifier which must not be infixed
@@ -72,10 +73,11 @@ nonfixLongValueIdentifier :: (MonadParser parser)
 nonfixLongValueIdentifier fixityTable = do
   x <- op (long valueIdentifier)
   case Marked.value <$> Marked.value x of
-    Op.Ident Long.Long { Long.qualifiers = [], Long.ident } ->
-      if Marked.value ident `HashSet.member` FixityTable.operators fixityTable
-        then fail $ "unexpected infix identifier " ++ show ident
-        else return x
+    Op.Ident Long.Long { Long.qualifiers = [], Long.ident }
+      | Marked.value ident `HashSet.member` FixityTable.operators fixityTable
+      -> fail $ "unexpected infix identifier " ++ show ident
+      | otherwise
+      -> return x
     _ -> return x
 
 -- | Parses a value identifier

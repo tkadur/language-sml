@@ -69,8 +69,9 @@ instance MonadParser Parser where
     case debug of
       DebugLevel.Off -> parser
       DebugLevel.On  -> dbg_parser
-      DebugLevel.ForLabels labels ->
-        if any (`isPrefixOf` label) labels then dbg_parser else parser
+      DebugLevel.ForLabels labels
+        | any (`isPrefixOf` label) labels -> dbg_parser
+        | otherwise -> parser
     where dbg_parser = Megaparsec.Debug.dbg (intercalate "." label) parser
 
   liftParser = id
