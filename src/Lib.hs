@@ -5,6 +5,7 @@ import           Language.Sml.Parser.Internal.FixityTable
 import           Language.Sml.Parser.DebugLevel
 import           Language.Sml.Lexer
 import           Language.Sml.Pretty
+import qualified Language.Sml.Pretty.Comments  as Comments
 
 test :: (Show a) => Parser a -> DebugLevel -> Text -> IO ()
 test parser debugLevel input = do
@@ -45,6 +46,7 @@ testPretty verbose parser debugLevel w input = do
   when verbose $ do
     putStrLn ""
     putStrLn "Formatted: "
-  putTextLn
-    $ prettyPrint (Config { lineLength = w, indentWidth = 2 }) comments parsed
+  putTextLn $ prettyPrint (Config { lineLength = w, indentWidth = 2 })
+                          (Comments.fromList comments)
+                          parsed
   putStrLn ""

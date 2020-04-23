@@ -92,10 +92,11 @@ getTable infixable = case infixable of
   Expr -> getExprTable
  where
   getPatTable :: Table -> [[E.Operator Parser MPat]]
-  getPatTable =
-    -- Patterns cannot contain infix "="
-    removeOperatorFromTable (ValueIdent.ValueIdent "=")
-      >>> (liftTable $ \(_, patTable, _) -> patTable)
+  getPatTable table =
+    table
+      -- Patterns cannot contain infix "="
+      |> removeOperatorFromTable (ValueIdent.ValueIdent "=")
+      |> liftTable (\(_, patTable, _) -> patTable)
 
   getExprTable :: Table -> [[E.Operator Parser MExpr]]
   getExprTable = liftTable $ \(_, _, exprTable) -> exprTable

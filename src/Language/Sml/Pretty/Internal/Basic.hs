@@ -108,8 +108,8 @@ evalDocState indentation comments docState = evalState
           }
   )
  where
-  -- TODO(tkadur): This acts weird if the last pretty-printed thing isn't marked
-  -- (which it usually isn't). Should find a way to fix this
+  -- TODO(tkadur) This acts weird if the last pretty-printed thing isn't marked
+  -- Should find a way to fix this.
   flushRemainingComments :: Doc ann -> Doc ann
   flushRemainingComments doc =
     let remaining = do
@@ -127,10 +127,7 @@ instance IsString (Doc ann) where
   fromString = return . fromString
 
 instance Semigroup (Doc ann) where
-  doc1 <> doc2 = do
-    d1 <- doc1
-    d2 <- doc2
-    return (d1 <> d2)
+  (<>) = liftA2 (<>)
 
 instance Monoid (Doc ann) where
   mempty = return mempty
@@ -138,6 +135,7 @@ instance Monoid (Doc ann) where
 class Pretty a where
   pretty :: a -> Doc ann
 
+-- The @Show@ constraint isn't really necessary, but it makes debugging easier
 instance (Pretty a, Show a) => Pretty (Marked a) where
   pretty marked = do
     (past, pastPretty) <- flushAndReturnCommentsBefore marked
@@ -157,9 +155,6 @@ instance (Pretty a, Show a) => Pretty (Marked a) where
     return res
 
 instance Pretty Comments where
-  -- Because comments are marked, pretty-printing the last one will
-  -- automatically also pretty-print comments before it
-  -- pretty comments = maybe emptyDoc pretty (Comments.last comments)
   pretty = sep . mapM pretty . Comments.toList
 
 instance Pretty Comments.Comment where
@@ -172,12 +167,13 @@ instance Pretty Comments.Comment where
     setCurrentPosition
       (Marked.startPosition markedComment, Marked.endPosition markedComment)
 
-    -- Terrible back to get comments to get printed exactly as in the source
+    -- Terrible hack to get comments to be printed exactly as in the source
     let body = unsafeTextWithoutNewlines (Marked.value markedComment)
-    res <- hcat $ sequence ["(*", body, "*)"]
+    res <- "(*" <> body <> "*)"
     resetCurrentPosition
     return res
    where
+    -- Copied from the `prettyprinter` source
     unsafeTextWithoutNewlines :: Text -> Doc ann
     unsafeTextWithoutNewlines text = return $ case Text.uncons text of
       Nothing -> Doc.Internal.Empty
@@ -211,7 +207,6 @@ startsWith start = do
 endsWith :: Text -> Doc ann
 endsWith end = do
   currPos <- getCurrentPosition
-  -- trace "endsWith: " $ traceShow end $ traceShow currPos $ trace "" $ return ()
   case currPos of
     Nothing          -> error "There's no current position"
     Just (_, endPos) -> pretty $ Marked.Marked { Marked.value         = end

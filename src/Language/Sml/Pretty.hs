@@ -5,6 +5,7 @@ module Language.Sml.Pretty
   )
 where
 
+import qualified Data.Text                     as Text
 import qualified Data.Text.Prettyprint.Doc     as Doc
 import qualified Data.Text.Prettyprint.Doc.Render.Text
                                                as Render
@@ -12,7 +13,7 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text
 
 import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Lexer            as Lexer
-import qualified Language.Sml.Pretty.Comments  as Comments
+import           Language.Sml.Pretty.Comments   ( Comments )
 import           Language.Sml.Pretty.Internal.Basic
                                                 ( Pretty(..)
                                                 , evalDocState
@@ -45,10 +46,19 @@ data Config =
   , indentWidth :: Int
   }
 
-prettyPrint :: (Pretty a) => Config -> [Marked Lexer.Comment] -> a -> Text
+prettyPrint :: (Pretty a) => Config -> Comments -> a -> Text
 prettyPrint Config { lineLength, indentWidth } comments x =
-  Render.renderStrict $ Doc.layoutPretty
-    (Doc.LayoutOptions { Doc.layoutPageWidth = Doc.AvailablePerLine lineLength 1
-                       }
-    )
-    (evalDocState indentWidth (Comments.fromList comments) $ pretty x)
+  x
+    |> pretty
+    |> evalDocState indentWidth comments
+    |> Doc.layoutPretty
+         (Doc.LayoutOptions
+           { Doc.layoutPageWidth = Doc.AvailablePerLine lineLength 1
+           }
+         )
+    |> Render.renderStrict
+    |> fixTrailingNewlines
+ where
+  -- Ensure that output ends with exactly one newline
+  fixTrailingNewlines :: Text -> Text
+  fixTrailingNewlines output = Text.dropWhileEnd (== '\n') output <> "\n"

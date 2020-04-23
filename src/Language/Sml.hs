@@ -18,6 +18,7 @@ import qualified Language.Sml.Parser           as Parser
 import qualified Language.Sml.Parser.DebugLevel
                                                as DebugLevel
 import qualified Language.Sml.Pretty           as Pretty
+import qualified Language.Sml.Pretty.Comments  as Pretty.Comments
 
 newtype Comments = Comments [Marked Lexer.Comment]
   deriving (Eq, Show)
@@ -43,8 +44,8 @@ parse (Lexed filepath rawInput tokens) = case parsed of
   stream = Parser.stream filepath rawInput tokens
 
 prettyPrint :: Pretty.Config -> Comments -> Toplevel -> Text
-prettyPrint config (Comments comments) toplevel =
-  Pretty.prettyPrint config comments toplevel
+prettyPrint config (Comments comments) =
+  Pretty.prettyPrint config (Pretty.Comments.fromList comments)
 
 reportLexerError :: Lexer.Error -> IO a
 reportLexerError err = do
