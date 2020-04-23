@@ -5,7 +5,10 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( sepBy1 )
-import           Text.Megaparsec                ( try )
+import           Text.Megaparsec                ( lookAhead
+                                                , observing
+                                                , try
+                                                )
 
 import           Language.Sml.Ast.Expr          ( MExpr )
 import qualified Language.Sml.Ast.Expr         as Expr
@@ -41,18 +44,63 @@ expression fixityTable = dbg ["expression"] $ do
     (map (\t -> token_ t >> return t)
          [Token.Colon, Token.Andalso, Token.Orelse, Token.Handle]
     )
+  -- Manual lookahead
   case next of
     Nothing          -> return expr
     Just Token.Colon -> do
       t <- typ
       return $ Marked.merge expr t (Expr.Annot { Expr.expr, Expr.typ = t })
     Just Token.Andalso -> do
+      -- Check if next token is paren
+      -- TODO(tkadur) this is a terribly hacky way to handle precedence
+      parens <-
+        either (const False) (const True)
+          <$> (observing . lookAhead . try . parenthesized $ expression
+                fixityTable
+              )
       rhs <- expression fixityTable
-      return
-        $ Marked.merge expr rhs (Expr.Andalso { Expr.lhs = expr, Expr.rhs })
+
+      -- Fix precedence issues with these manual lookahead cases
+      -- In particular, if @expr@ is an @Expr.Orelse@ or @Expr.Handle@
+      -- with no parens around it, we will mistakenly parse those constructs
+      -- as having higher precedence than @Expr.Andalso@
+      return . Marked.merge expr rhs $ case (parens, Marked.value rhs) of
+        (False, Expr.Orelse { Expr.lhs = lhs', Expr.rhs = rhs' }) ->
+          Expr.Orelse
+            { Expr.lhs = Marked.merge
+                           expr
+                           lhs'
+                           (Expr.Andalso { Expr.lhs = expr, Expr.rhs = lhs' })
+            , Expr.rhs = rhs'
+            }
+        (False, Expr.Handle { Expr.expr = expr', Expr.match = match' }) ->
+          Expr.Handle
+            { Expr.expr  = Marked.merge
+                             expr
+                             expr'
+                             (Expr.Andalso { Expr.lhs = expr, Expr.rhs = expr' })
+            , Expr.match = match'
+            }
+        _ -> Expr.Andalso { Expr.lhs = expr, Expr.rhs }
     Just Token.Orelse -> do
+      -- See @Token.Andalso@ case for explanation
+      parens <-
+        either (const False) (const True)
+          <$> (observing . lookAhead . try . parenthesized $ expression
+                fixityTable
+              )
       rhs <- expression fixityTable
-      return $ Marked.merge expr rhs (Expr.Orelse { Expr.lhs = expr, Expr.rhs })
+
+      return $ Marked.merge expr rhs $ case (parens, Marked.value rhs) of
+        (False, Expr.Handle { Expr.expr = expr', Expr.match = match' }) ->
+          Expr.Handle
+            { Expr.expr  = Marked.merge
+                             expr
+                             expr'
+                             (Expr.Orelse { Expr.lhs = expr, Expr.rhs = expr' })
+            , Expr.match = match'
+            }
+        _ -> Expr.Orelse { Expr.lhs = expr, Expr.rhs }
     Just Token.Handle -> do
       m <- match fixityTable
       return $ Marked.merge expr
