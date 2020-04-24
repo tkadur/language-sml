@@ -2,6 +2,7 @@ module Language.Sml.Parser.Internal.Parsers.Identifier
   ( valueIdentifier
   , nonfixValueIdentifier
   , nonfixLongValueIdentifier
+  , infixValueIdentifier
   , structureIdentifier
   , typeVariable
   , typeConstructor
@@ -51,7 +52,7 @@ import qualified Language.Sml.Parser.Internal.Token
 
 -- | Parses a value identifier which must not be infixed
 nonfixValueIdentifier :: Parser (MOp MValueIdent)
-nonfixValueIdentifier = do
+nonfixValueIdentifier = try $ do
   fixityTable <- get
   x           <- op valueIdentifier
   case Marked.value x of
@@ -74,6 +75,14 @@ nonfixLongValueIdentifier = do
       | otherwise
       -> return x
     _ -> return x
+
+infixValueIdentifier :: Parser MValueIdent
+infixValueIdentifier = try $ do
+  fixityTable <- get
+  ident       <- valueIdentifier
+  if Marked.value ident `HashSet.member` FixityTable.operators fixityTable
+    then return ident
+    else fail $ "unexpected nonfix identifier " ++ show ident
 
 -- | Parses a value identifier
 valueIdentifier :: Parser MValueIdent

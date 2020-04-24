@@ -31,6 +31,7 @@ import           Language.Sml.Parser.Internal.Parsers.Identifier
                                                 ( valueIdentifier
                                                 , nonfixValueIdentifier
                                                 , nonfixLongValueIdentifier
+                                                , infixValueIdentifier
                                                 , typeVariable
                                                 , typeConstructor
                                                 , structureIdentifier
@@ -122,10 +123,12 @@ funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
   choice [infixClause, nonfixClause]
  where
   -- TODO(tkadur) enforce parens as the standard requires
-  -- @try@ to prevent conflict with nonfix clause
-  infixClause = try $ do
-    lhs       <- atomicPattern
-    infixName <- valueIdentifier
+  infixClause = do
+    -- @try@ to prevent conflict with nonfix clause
+    (lhs, infixName) <- try $ do
+      lhs       <- atomicPattern
+      infixName <- infixValueIdentifier
+      return (lhs, infixName)
     rhs       <- atomicPattern
     infixArgs <- many atomicPattern
     returnTyp <- optional (token_ Token.Colon >> typ)
