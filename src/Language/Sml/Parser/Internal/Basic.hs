@@ -27,7 +27,6 @@ import           Control.Monad.Combinators.NonEmpty
 import           Control.Monad.RWS.Strict       ( RWS )
 import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Data.Set                      as Set
-import qualified Data.Vector                   as Vector
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 
@@ -132,20 +131,19 @@ marked parser = do
   (parsedTokens, value) <- M.match parser
   remainingTokens       <- Stream.tokens <$> M.getInput
 
-  case (Vector.null parsedTokens, Vector.null remainingTokens) of
-    (False, _) ->
-      let ((_, start), (_, end)) =
-              (Vector.head parsedTokens, Vector.last parsedTokens)
+  case (nonEmpty parsedTokens, nonEmpty remainingTokens) of
+    (Just parsed, _) ->
+      let ((_, start), (_, end)) = (head parsed, last parsed)
       in  return $ Marked.merge start end value
     -- If nothing was consumed, take our best guess
-    (True, False) ->
-      let Marked.Marked { Marked.startPosition } = Vector.head remainingTokens
+    (Nothing, Just remaining) ->
+      let Marked.Marked { Marked.startPosition } = head remaining
       in  return $ Marked.Marked { Marked.value
                                  , Marked.startPosition
                                  , Marked.endPosition   = startPosition
                                  }
     -- If nothing was consumed and no input is left, last rsort
-    (True, True) -> do
+    (Nothing, Nothing) -> do
       M.SourcePos {..} <- M.getSourcePos
 
       let position = Position.Position
