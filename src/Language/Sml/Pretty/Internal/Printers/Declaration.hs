@@ -140,12 +140,16 @@ instance Pretty FunClause where
           -- There may not be a return type, so we need to handle spacing
           returnTypPretty = case returnTyp of
             Nothing  -> emptyDoc
-            Just typ -> space <> colon <+> grouped (align $ pretty typ)
+            Just typ -> line <> colon <+> grouped (align $ pretty typ)
 
           bodyPretty = do
             setPatternMatching True
-            grouped $ nest (line <> grouped (pretty body))
-      in  infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
+            nest (line <> grouped (pretty body))
+      -- Only allow the body to be inline with the "=" if the whole thing fits on one line
+      in  grouped
+            -- Only allow the return type to be inline with the args if they all fit on one line
+            (infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
+            )
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
           argsPretty = alignsep (mapM prettyArg args)
@@ -153,16 +157,20 @@ instance Pretty FunClause where
             -- There may not be a return type, so we need to handle spacing
           returnTypPretty = case returnTyp of
             Nothing  -> emptyDoc
-            Just typ -> space <> colon <+> grouped (align $ pretty typ)
+            Just typ -> line <> colon <+> grouped (align $ pretty typ)
 
           bodyPretty = do
             setPatternMatching True
-            grouped $ nest (line <> grouped (pretty body))
-      in  pretty nonfixName
+            nest (line <> grouped (pretty body))
+      -- Only allow the body to be inline with the "=" if the whole thing fits on one line
+      in  grouped
+            -- Only allow the return type to be inline with the args if they all fit on one line
+            (   pretty nonfixName
             <+> argsPretty
             <>  returnTypPretty
             <+> equals
             <>  bodyPretty
+            )
    where
     -- Hack to make argument parenthesized when necessary
     -- Pretend that they're inside a higher-than-maximum precedence
