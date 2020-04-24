@@ -135,7 +135,7 @@ instance Pretty FunClause where
           -- There may not be other args, so we need to handle spacing
           argsPretty = case infixArgs of
             [] -> emptyDoc
-            _  -> space <> alignsep (mapM prettyArg infixArgs)
+            _  -> space <> align (vsep $ mapM prettyArg infixArgs)
 
           -- There may not be a return type, so we need to handle spacing
           returnTypPretty = case returnTyp of
@@ -147,12 +147,15 @@ instance Pretty FunClause where
             nest (line <> grouped (pretty body))
       -- Only allow the body to be inline with the "=" if the whole thing fits on one line
       in  grouped
+            (   infixPart
             -- Only allow the return type to be inline with the args if they all fit on one line
-            (infixPart <> argsPretty <> returnTypPretty <+> equals <> bodyPretty
+            <>  grouped (align $ argsPretty <> returnTypPretty)
+            <+> equals
+            <>  bodyPretty
             )
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
-          argsPretty = alignsep (mapM prettyArg args)
+          argsPretty = align (vsep $ mapM prettyArg args)
 
             -- There may not be a return type, so we need to handle spacing
           returnTypPretty = case returnTyp of
@@ -164,10 +167,9 @@ instance Pretty FunClause where
             nest (line <> grouped (pretty body))
       -- Only allow the body to be inline with the "=" if the whole thing fits on one line
       in  grouped
-            -- Only allow the return type to be inline with the args if they all fit on one line
             (   pretty nonfixName
-            <+> argsPretty
-            <>  returnTypPretty
+            -- Only allow the return type to be inline with the args if they all fit on one line
+            <+> grouped (align $ argsPretty <> returnTypPretty)
             <+> equals
             <>  bodyPretty
             )
