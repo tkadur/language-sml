@@ -27,6 +27,7 @@ import           Control.Monad.Combinators.NonEmpty
 import           Control.Monad.RWS.Strict       ( RWS )
 import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Data.Set                      as Set
+import qualified Data.Vector                   as Vector
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
 
@@ -127,23 +128,27 @@ xseq parser = dbg ["xseq"] $ choice [M.try sqnce, singleton, emptySeq]
     (parser `sepBy1` token_ Token.Comma)
 
 marked :: Parser a -> Parser (Marked a)
+-- marked parser = do
+--   x <- parser
+--   let pos = Position.Position "" (Positive.positive 1) (Positive.positive 1)
+--   return $ Marked.Marked x pos pos
 marked parser = do
-  (parsedTokens, value) <- M.match parser
-  remainingTokens       <- Stream.tokens <$> M.getInput
+  (parsed, value) <- M.match parser
+  remaining       <- Stream.tokens <$> M.getInput
 
-  case (nonEmpty parsedTokens, nonEmpty remainingTokens) of
-    (Just parsed, _) ->
-      let ((_, start), (_, end)) = (head parsed, last parsed)
+  case (Vector.null parsed, Vector.null remaining) of
+    (False, _) ->
+      let ((_, start), (_, end)) = (Vector.head parsed, Vector.last parsed)
       in  return $ Marked.merge start end value
     -- If nothing was consumed, take our best guess
-    (Nothing, Just remaining) ->
-      let Marked.Marked { Marked.startPosition } = head remaining
+    (True, False) ->
+      let (_, Marked.Marked { Marked.startPosition }) = Vector.head remaining
       in  return $ Marked.Marked { Marked.value
                                  , Marked.startPosition
                                  , Marked.endPosition   = startPosition
                                  }
     -- If nothing was consumed and no input is left, last rsort
-    (Nothing, Nothing) -> do
+    (True, True) -> do
       M.SourcePos {..} <- M.getSourcePos
 
       let position = Position.Position
@@ -156,4 +161,3 @@ marked parser = do
                              , Marked.startPosition = position
                              , Marked.endPosition   = position
                              }
-

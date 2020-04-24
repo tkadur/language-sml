@@ -5,8 +5,10 @@ module Language.Sml.Parser.Internal.Stream
   )
 where
 
-import           Data.List                      ( span )
-import qualified Relude.Unsafe                 as Unsafe
+import           Data.Vector                    ( Vector
+                                                , (!?)
+                                                )
+import qualified Data.Vector                   as Vector
 import qualified Text.Megaparsec               as M
 
 import           Language.Sml.Common.Marked     ( Marked )
@@ -17,15 +19,15 @@ import           Language.Sml.Common.Positive   ( Positive )
 import qualified Language.Sml.Common.Positive  as Positive
 import qualified Language.Sml.Lexer.Token      as Lexer.Token
 
-type Input = [(Position, Char)]
+type Input = Vector (Position, Char)
 
 type SToken = (Input, Marked Lexer.Token.Token)
 
-type STokens = [SToken]
+type STokens = Vector SToken
 
 data Stream = Stream
   { input :: Input
-  , tokens :: [Marked Lexer.Token.Token]
+  , tokens :: STokens
   }
   deriving (Show)
 
@@ -34,10 +36,10 @@ instance M.Stream Stream where
   type Tokens Stream = STokens
 
   tokensToChunk :: Proxy Stream -> [SToken] -> STokens
-  tokensToChunk Proxy = id
+  tokensToChunk Proxy = Vector.fromList
 
   chunkToTokens :: Proxy Stream -> STokens -> [SToken]
-  chunkToTokens Proxy = id
+  chunkToTokens Proxy = Vector.toList
 
   chunkLength :: Proxy Stream -> STokens -> Int
   chunkLength Proxy = length
@@ -47,16 +49,16 @@ instance M.Stream Stream where
 
   take1_ :: Stream -> Maybe (SToken, Stream)
   take1_ strm = unwrapTokens <$> M.takeN_ 1 strm
-    where unwrapTokens (tokens, strm') = (Unsafe.head tokens, strm')
+    where unwrapTokens (tokens, strm') = (Vector.head tokens, strm')
 
   takeN_ :: Int -> Stream -> Maybe (STokens, Stream)
   takeN_ n strm@Stream {..}
-    | n <= 0      = Just ([], strm)
+    | n <= 0      = Just (Vector.empty, strm)
     | null tokens = Nothing
-    | otherwise   = Just $ take_ strm (splitAt n $ strmToStokens strm)
+    | otherwise   = Just $ take_ strm (Vector.splitAt n $ strmToStokens strm)
 
   takeWhile_ :: (SToken -> Bool) -> Stream -> (STokens, Stream)
-  takeWhile_ f strm = take_ strm (span f $ strmToStokens strm)
+  takeWhile_ f strm = take_ strm (Vector.span f $ strmToStokens strm)
 
   showTokens :: Proxy Stream -> NonEmpty SToken -> String
   showTokens Proxy stokens = inputToString
@@ -72,7 +74,7 @@ instance M.Stream Stream where
   reachOffset offset M.PosState {..} = (offendingLine, posState')
    where
     offendingLine =
-      let res = inputToString $ filter
+      let res = inputToString $ Vector.filter
             (\(Position.Position { line }, c) ->
               -- Only keep the desired line and don't include newline at end
               c /= '\n' && positiveToPos line == M.sourceLine pstateSourcePos'
@@ -96,11 +98,12 @@ instance M.Stream Stream where
                            , pstateLinePrefix
                            }
 
-    tokens'          = drop offset tokens
+    tokens'          = Vector.drop offset tokens
     pstateInput'     = Stream { input, tokens = tokens' }
-    pstateSourcePos' = case (tokens !!? (length tokens - 1), tokens' !!? 0) of
-      (_, Just token) -> positionToSourcePos $ Marked.startPosition token
-      (Just token, Nothing) -> positionToSourcePos $ Marked.endPosition token
+    pstateSourcePos' = case (tokens !? (length tokens - 1), tokens' !? 0) of
+      (_, Just (_, token)) -> positionToSourcePos $ Marked.startPosition token
+      (Just (_, token), Nothing) ->
+        positionToSourcePos $ Marked.endPosition token
       (Nothing, Nothing) -> pstateSourcePos
 
     Stream { input, tokens } = pstateInput
@@ -119,24 +122,28 @@ instance M.Stream Stream where
 --   of @inpt@ in [@startPosition@, @endPosition@)
 sliceInput :: Position -> Position -> Input -> Input
 sliceInput startPosition endPosition inpt =
-  inpt |> dropWhile (\(position, _) -> position < startPosition) |> takeWhile
-    (\(position, _) -> position < endPosition)
+  inpt
+    |> Vector.dropWhile (\(position, _) -> position < startPosition)
+    |> Vector.takeWhile (\(position, _) -> position < endPosition)
 
 -- Factors out common functionality for takeN_ and takeWhile_
 take_ :: Stream -> (STokens, STokens) -> (STokens, Stream)
-take_ strm (res, stokens) = (res, strm { tokens = map snd stokens })
+take_ strm (res, tokens) = (res, strm { tokens })
 
 stream :: FilePath                   -- ^ Source file name
        -> Text                       -- ^ Source file contents
        -> [Marked Lexer.Token.Token] -- ^ Lexed token stream
        -> Stream
-stream file rawInput tokens = Stream { input, tokens }
+stream file rawInput tokens = Stream
+  { input
+  , tokens = Vector.fromList (map (input, ) tokens)
+  }
  where
   input = mark $ toString rawInput
 
   -- | Marks every character with its position
   mark :: String -> Input
-  mark = foldingMap
+  mark = Vector.fromList . foldingMap
     (\(line, col) c ->
       -- Update position based on current character
       ( case c of
@@ -150,10 +157,10 @@ stream file rawInput tokens = Stream { input, tokens }
     (1, 1)
 
 strmToStokens :: Stream -> STokens
-strmToStokens Stream {..} = map (input, ) tokens
+strmToStokens Stream { tokens } = tokens
 
 inputToString :: Input -> String
-inputToString = map snd
+inputToString = map snd . Vector.toList
 
 -- | Specialized version of @Proxy@ to aid type inference and avoid
 --   the need for explicit type application.
