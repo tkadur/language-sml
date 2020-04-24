@@ -20,7 +20,6 @@ import           Language.Sml.Ast.Typ           ( MTyp )
 import qualified Language.Sml.Ast.Typ          as Typ
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
-                                         hiding ( Parser )
 import           Language.Sml.Parser.Internal.Parsers.Identifier
                                                 ( typeVariable
                                                 , typeConstructor
@@ -30,7 +29,7 @@ import           Language.Sml.Parser.Internal.Parsers.Identifier
 import qualified Language.Sml.Parser.Internal.Token
                                                as Token
 
-typ :: (MonadParser parser) => parser MTyp
+typ :: Parser MTyp
 typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
  where
   -- Handle product types
@@ -67,7 +66,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
     ]
 
 -- Application where left recursion isn't an issue
-multiArgApp :: (MonadParser parser) => parser MTyp
+multiArgApp :: Parser MTyp
 multiArgApp = dbg ["typ", "multiArgApp"] . marked . try $ do
   args   <- parenthesized (typ `sepBy1` token_ Token.Comma)
   -- @try@ to prevent trying to parse * as tycon
@@ -76,21 +75,21 @@ multiArgApp = dbg ["typ", "multiArgApp"] . marked . try $ do
   return Typ.App { Typ.tycons, Typ.args }
 
 -- Parenthesized
-parens :: (MonadParser parser) => parser MTyp
+parens :: Parser MTyp
 parens = parenthesized typ
 
-unappliedTycon :: (MonadParser parser) => parser MTyp
+unappliedTycon :: Parser MTyp
 -- @try@ to prevent conflict with *
 unappliedTycon = marked $ Typ.TyCon <$> try (long typeConstructor)
 
-tyvar :: (MonadParser parser) => parser MTyp
+tyvar :: Parser MTyp
 tyvar = dbg ["typ", "tyvar"] . marked $ Typ.TyVar <$> typeVariable
 
-record :: (MonadParser parser) => parser MTyp
+record :: Parser MTyp
 record = dbg ["typ", "record"] . marked $ Typ.Record <$> braces
   (row `sepBy` token_ Token.Comma)
  where
-  row :: (MonadParser parser) => parser Typ.MRow
+  row :: Parser Typ.MRow
   row = marked $ do
     lbl <- label
     token_ Token.Colon

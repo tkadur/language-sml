@@ -16,8 +16,6 @@ import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
 import           Language.Sml.Parser.Internal.Combinators
                                                 ( sepBy2 )
-import           Language.Sml.Parser.Internal.FixityTable
-                                                ( FixityTable )
 import qualified Language.Sml.Parser.Internal.FixityTable
                                                as FixityTable
 import {-# SOURCE #-} Language.Sml.Parser.Internal.Parsers.Declaration
@@ -36,8 +34,8 @@ import qualified Language.Sml.Parser.Internal.Token
                                                as Token
 
 -- | Parses an expression
-expression :: (MonadParser parser) => FixityTable -> parser MExpr
-expression fixityTable = dbg ["expression"] $ do
+expression :: Parser MExpr
+expression = dbg ["expression"] $ do
   -- Handle left-recursive cases
   expr <- expression'
   next <- optional $ choice
@@ -55,10 +53,8 @@ expression fixityTable = dbg ["expression"] $ do
       -- TODO(tkadur) this is a terribly hacky way to handle precedence
       parens <-
         either (const False) (const True)
-          <$> (observing . lookAhead . try . parenthesized $ expression
-                fixityTable
-              )
-      rhs <- expression fixityTable
+          <$> (observing . lookAhead . try $ parenthesized expression)
+      rhs <- expression
 
       -- Fix precedence issues with these manual lookahead cases
       -- In particular, if @expr@ is an @Expr.Orelse@ or @Expr.Handle@
@@ -86,10 +82,8 @@ expression fixityTable = dbg ["expression"] $ do
       -- See @Token.Andalso@ case for explanation
       parens <-
         either (const False) (const True)
-          <$> (observing . lookAhead . try . parenthesized $ expression
-                fixityTable
-              )
-      rhs <- expression fixityTable
+          <$> (observing . lookAhead . try $ parenthesized expression)
+      rhs <- expression
 
       return $ Marked.merge expr rhs $ case (parens, Marked.value rhs) of
         (False, Expr.Handle { Expr.expr = expr', Expr.match = match' }) ->
@@ -102,7 +96,7 @@ expression fixityTable = dbg ["expression"] $ do
             }
         _ -> Expr.Orelse { Expr.lhs = expr, Expr.rhs }
     Just Token.Handle -> do
-      m <- match fixityTable
+      m <- match
       return $ Marked.merge expr
                             ((\Expr.MatchArm { Expr.rhs } -> rhs) $ last m)
                             (Expr.Handle { Expr.expr, Expr.match = m })
@@ -111,59 +105,59 @@ expression fixityTable = dbg ["expression"] $ do
   -- Non-left recursive cases
   expression' = choice [infexp, raise, ifThenElse, while, caseof, fn]
 
-  infexp      = FixityTable.makeParser FixityTable.Expr
-                                       (atomicExpression fixityTable)
-                                       fixityTable
+  infexp      = do
+    fixityTable <- get
+    FixityTable.makeParser FixityTable.Expr atomicExpression fixityTable
 
   raise = marked $ do
     token_ Token.Raise
-    expr <- expression fixityTable
+    expr <- expression
     return $ Expr.Raise expr
 
   ifThenElse = marked $ do
     token_ Token.If
-    cond <- expression fixityTable
+    cond <- expression
     token_ Token.Then
-    ifExpr <- expression fixityTable
+    ifExpr <- expression
     token_ Token.Else
-    elseExpr <- expression fixityTable
+    elseExpr <- expression
     return Expr.If { Expr.cond, Expr.ifExpr, Expr.elseExpr }
 
   while = marked $ do
     token_ Token.While
-    cond <- expression fixityTable
+    cond <- expression
     token_ Token.Do
-    body <- expression fixityTable
+    body <- expression
     return Expr.While { Expr.cond, Expr.body }
 
   caseof = marked $ do
     token_ Token.Case
-    expr <- expression fixityTable
+    expr <- expression
     token_ Token.Of
-    m <- match fixityTable
+    m <- match
     return Expr.Case { Expr.expr, Expr.match = m }
 
   fn = marked $ do
     token_ Token.Fn
-    m <- match fixityTable
+    m <- match
     return Expr.Fn { Expr.match = m }
 
-atomicExpression :: (MonadParser parser) => FixityTable -> parser MExpr
-atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
-  [lit, vident, record, recordSelector, tup, lst, sqnc, letInEnd, parens]
+atomicExpression :: Parser MExpr
+atomicExpression = dbg ["expression", "atomicExpression"] $ choice
+  [lit, vident, record, recordSelector, tup, lst, sqnce, letInEnd, parens]
  where
   lit    = marked $ Expr.Lit <$> literal
 
   -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
-  vident = marked . try $ Expr.Ident <$> nonfixLongValueIdentifier fixityTable
+  vident = marked . try $ Expr.Ident <$> nonfixLongValueIdentifier
 
   record = marked $ Expr.Record <$> braces (row `sepBy` token_ Token.Comma)
    where
-    row :: (MonadParser parser) => parser Expr.Row
+    row :: Parser Expr.Row
     row = do
       lab <- label
       token_ Token.Equal
-      expr <- expression fixityTable
+      expr <- expression
       return Expr.Row { Expr.label = lab, Expr.expr }
 
   recordSelector = marked $ do
@@ -171,31 +165,37 @@ atomicExpression fixityTable = dbg ["expression", "atomicExpression"] $ choice
     lab <- label
     return $ Expr.RecordSelector lab
 
-  -- @try@ to prevent conflict with sqnc/parens
-  tup  = marked . try $ Expr.Tuple <$> tuple (expression fixityTable)
+  -- @try@ to prevent conflict with sqnce/parens
+  tup   = marked . try $ Expr.Tuple <$> tuple expression
 
-  lst  = marked $ Expr.List <$> list (expression fixityTable)
+  lst   = marked $ Expr.List <$> list expression
 
   -- @try@ to prevent conflict with parens
-  sqnc = marked . try $ Expr.Sequence <$> parenthesized
-    (expression fixityTable `sepBy2` token_ Token.Semicolon)
+  sqnce = marked . try $ Expr.Sequence <$> parenthesized
+    (expression `sepBy2` token_ Token.Semicolon)
 
   letInEnd = marked $ do
     token_ Token.Let
-    decl <- evalStateT declaration fixityTable
+    decl <- do
+      -- Save old fixity table
+      fixityTable <- get
+      res         <- declaration
+      -- Restore old fixity table
+      put fixityTable
+      return res
     token_ Token.In
-    exprs <- expression fixityTable `sepBy1` token_ Token.Semicolon
+    exprs <- expression `sepBy1` token_ Token.Semicolon
     token_ Token.End
     return Expr.Let { Expr.decl, Expr.exprs }
 
-  parens = parenthesized (expression fixityTable)
+  parens = parenthesized expression
 
-match :: (MonadParser parser) => FixityTable -> parser Expr.Match
-match fixityTable = matchArm fixityTable `sepBy1` token_ Token.Pipe
+match :: Parser Expr.Match
+match = matchArm `sepBy1` token_ Token.Pipe
 
-matchArm :: (MonadParser parser) => FixityTable -> parser Expr.MatchArm
-matchArm fixityTable = do
-  lhs <- pattern fixityTable
+matchArm :: Parser Expr.MatchArm
+matchArm = do
+  lhs <- pattern
   token_ Token.Widearrow
-  rhs <- expression fixityTable
+  rhs <- expression
   return Expr.MatchArm { Expr.rhs, Expr.lhs }

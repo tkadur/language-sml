@@ -61,11 +61,7 @@ data Infixable a where
   Pat ::Infixable MPat
   Expr ::Infixable MExpr
 
-makeParser :: (MonadParser parser)
-           => Infixable a
-           -> parser a
-           -> FixityTable
-           -> parser a
+makeParser :: Infixable a -> Parser a -> FixityTable -> Parser a
 makeParser infixable parser FixityTable { table } =
   table
     |> getTable infixable
@@ -75,16 +71,14 @@ makeParser infixable parser FixityTable { table } =
     |> liftOperators
     |> E.makeExprParser parser
  where
-  liftOperators :: (MonadParser parser)
-                => [[E.Operator Parser a]]
-                -> [[E.Operator parser a]]
+  liftOperators :: [[E.Operator Parser a]] -> [[E.Operator Parser a]]
   liftOperators = fmap . fmap $ \case
-    E.InfixN  cmb -> E.InfixN (liftParser cmb)
-    E.InfixL  cmb -> E.InfixL (liftParser cmb)
-    E.InfixR  cmb -> E.InfixR (liftParser cmb)
-    E.Prefix  cmb -> E.Prefix (liftParser cmb)
-    E.Postfix cmb -> E.Postfix (liftParser cmb)
-    E.TernR   cmb -> E.TernR (liftParser <$> liftParser cmb)
+    E.InfixN  cmb -> E.InfixN cmb
+    E.InfixL  cmb -> E.InfixL cmb
+    E.InfixR  cmb -> E.InfixR cmb
+    E.Prefix  cmb -> E.Prefix cmb
+    E.Postfix cmb -> E.Postfix cmb
+    E.TernR   cmb -> E.TernR cmb
 
 getTable :: Infixable a -> Table -> [[E.Operator Parser a]]
 getTable infixable = case infixable of

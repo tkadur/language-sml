@@ -11,8 +11,6 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text
                                                as Render
 
 
-import           Language.Sml.Common.Marked     ( Marked )
-import qualified Language.Sml.Lexer            as Lexer
 import           Language.Sml.Pretty.Comments   ( Comments )
 import           Language.Sml.Pretty.Internal.Basic
                                                 ( Pretty(..)

@@ -25,8 +25,6 @@ import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( MValueIdent )
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
-import           Language.Sml.Parser.Internal.FixityTable
-                                                ( FixityTable )
 import qualified Language.Sml.Parser.Internal.FixityTable
                                                as FixityTable
 import           Language.Sml.Parser.Internal.Parsers.Identifier
@@ -56,12 +54,8 @@ import           Language.Sml.Parser.Internal.Token
 import qualified Language.Sml.Parser.Internal.Token
                                                as Token
 
-type FixityMonadParser parser
-  = (MonadParser parser, MonadState FixityTable parser)
-
 -- | Parses a declaration
-declaration :: (MonadParser parser, MonadState FixityTable parser)
-            => parser MDecl
+declaration :: Parser MDecl
 declaration = dbg ["declaration"] $ do
     -- Handle declaration sequences
   decls <- marked $ declaration' `sepEndBy` (token_ Token.Semicolon <|> nothing)
@@ -86,60 +80,57 @@ declaration = dbg ["declaration"] $ do
 
 -- Val declarations
 
-val :: (FixityMonadParser parser) => parser MDecl
+val :: Parser MDecl
 val = dbg ["declaration", "val"] . marked $ do
   token_ Token.Val
   tyvars   <- xseq typeVariable
   valbinds <- binds Token.And valBind
   return Decl.Val { Decl.tyvars, Decl.valbinds }
 
-valBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MValBind
+valBind :: Parser () -> Parser Decl.MValBind
 valBind start = dbg ["delaration", "val", "valbind"] . marked $ do
-  fixityTable <- get
-
-  liftParser start
+  start
 
   maybeRec <- observing (token_ Token.Rec)
   let isRec = case maybeRec of
         Left  _  -> False
         Right () -> True
 
-  lhs <- pattern fixityTable
+  lhs <- pattern
   token_ Token.Equal
-  rhs <- expression fixityTable
+  rhs <- expression
   return Decl.ValBind { Decl.isRec, Decl.lhs, Decl.rhs }
 
 -- Fun declarations
 
-fun :: (FixityMonadParser parser) => parser MDecl
+fun :: Parser MDecl
 fun = dbg ["declaration", "fun"] . marked $ do
   token_ Token.Fun
   tyvars   <- xseq typeVariable
   funbinds <- binds Token.And funBind
   return Decl.Fun { Decl.tyvars, Decl.funbinds }
 
-funBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MFunBind
+funBind :: Parser () -> Parser Decl.MFunBind
 funBind start = dbg ["declaration", "fun", "funBind"] . marked $ do
-  liftParser start
+  start
   clauses <- binds Token.Pipe funClause
   return Decl.FunBind { Decl.clauses }
 
-funClause :: (FixityMonadParser parser) => Parser () -> parser Decl.FunClause
+funClause :: Parser () -> Parser Decl.FunClause
 funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
-  liftParser start
+  start
   choice [infixClause, nonfixClause]
  where
   -- TODO(tkadur) enforce parens as the standard requires
   -- @try@ to prevent conflict with nonfix clause
   infixClause = try $ do
-    fixityTable <- get
-    lhs         <- atomicPattern fixityTable
-    infixName   <- valueIdentifier
-    rhs         <- atomicPattern fixityTable
-    infixArgs   <- many (atomicPattern fixityTable)
-    returnTyp   <- optional (token_ Token.Colon >> typ)
+    lhs       <- atomicPattern
+    infixName <- valueIdentifier
+    rhs       <- atomicPattern
+    infixArgs <- many atomicPattern
+    returnTyp <- optional (token_ Token.Colon >> typ)
     token_ Token.Equal
-    body <- expression fixityTable
+    body <- expression
     return Decl.InfixClause { Decl.lhs
                             , Decl.infixName
                             , Decl.rhs
@@ -149,12 +140,11 @@ funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
                             }
 
   nonfixClause = do
-    fixityTable <- get
-    nonfixName  <- nonfixValueIdentifier fixityTable
-    nonfixArgs  <- some (atomicPattern fixityTable)
-    returnTyp   <- optional (token_ Token.Colon >> typ)
+    nonfixName <- nonfixValueIdentifier
+    nonfixArgs <- some atomicPattern
+    returnTyp  <- optional (token_ Token.Colon >> typ)
     token_ Token.Equal
-    body <- expression fixityTable
+    body <- expression
     return Decl.NonfixClause { Decl.nonfixName
                              , Decl.nonfixArgs
                              , Decl.returnTyp
@@ -163,15 +153,15 @@ funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
 
 -- Type aliases
 
-typAlias :: (FixityMonadParser parser) => parser MDecl
+typAlias :: Parser MDecl
 typAlias = dbg ["declaration", "typAlias"] . marked $ do
   token_ Token.Type
   typbinds <- binds Token.And typBind
   return Decl.TypAlias { Decl.typbinds }
 
-typBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MTypBind
+typBind :: Parser () -> Parser Decl.MTypBind
 typBind start = dbg ["declaration", "typAlias", "typBind"] . marked $ do
-  liftParser start
+  start
   tyvars <- xseq typeVariable
   tycon  <- typeConstructor
   token_ Token.Equal
@@ -180,7 +170,7 @@ typBind start = dbg ["declaration", "typAlias", "typBind"] . marked $ do
 
 -- Datatype replication
 
-datatypeReplication :: (FixityMonadParser parser) => parser MDecl
+datatypeReplication :: Parser MDecl
 datatypeReplication = dbg ["declaration", "datatypeReplication"] . marked $ do
   -- @try@ to prevent conflict with regular datatype declarations
   new <- try $ do
@@ -194,7 +184,7 @@ datatypeReplication = dbg ["declaration", "datatypeReplication"] . marked $ do
 
 -- Datatype declaration
 
-datatype :: (FixityMonadParser parser) => parser MDecl
+datatype :: Parser MDecl
 datatype = dbg ["declaration", "datatype"] . marked $ do
   token_ Token.Datatype
   datbinds <- binds Token.And datBind
@@ -203,24 +193,24 @@ datatype = dbg ["declaration", "datatype"] . marked $ do
     binds Token.And typBind
   return Decl.Datatype { Decl.datbinds, Decl.withtype }
 
-datBind :: (FixityMonadParser parser) => Parser () -> parser Decl.MDatBind
+datBind :: Parser () -> Parser Decl.MDatBind
 datBind start = dbg ["declaration", "datatype", "datBind"] . marked $ do
-  liftParser start
+  start
   tyvars <- xseq typeVariable
   tycon  <- typeConstructor
   token_ Token.Equal
   conbinds <- binds Token.Pipe conBind
   return Decl.DatBind { Decl.tyvars, Decl.tycon, Decl.conbinds }
 
-conBind :: (FixityMonadParser parser) => Parser () -> parser Decl.ConBind
+conBind :: Parser () -> Parser Decl.ConBind
 conBind start = dbg ["declaration", "datatype", "datBind", "conBind"] $ do
-  liftParser start
+  start
   constructor <- op valueIdentifier
   arg         <- optional (token_ Token.Of >> typ)
   return Decl.ConBind { Decl.constructor, Decl.arg }
 
 -- Abstype declarations
-abstype :: (FixityMonadParser parser) => parser MDecl
+abstype :: Parser MDecl
 abstype = dbg ["declaration", "abstype"] . marked $ do
   token_ Token.Abstype
   datbinds <- binds Token.And datBind
@@ -233,39 +223,31 @@ abstype = dbg ["declaration", "abstype"] . marked $ do
   return Decl.Abstype { Decl.datbinds, Decl.withtype, Decl.decl }
 
 -- Exception declarations
-exception :: (FixityMonadParser parser) => parser MDecl
+exception :: Parser MDecl
 exception = dbg ["declaration", "exception"] . marked $ do
   token_ Token.Exception
   exnbinds <- binds Token.And exnBind
   return Decl.Exception { Decl.exnbinds }
 
-exnBind :: forall parser
-         . (FixityMonadParser parser)
-        => Parser ()
-        -> parser Decl.MExnBind
+exnBind :: Parser () -> Parser Decl.MExnBind
 exnBind start = dbg ["declaration", "exception", "exnBind"] . marked $ do
-  liftParser start
+  start
   choice [replication, regular]
  where
   replication = do
-    fixityTable <- get
     -- @try@ to prevent conflict with regular exnbinds
-    new         <- try (nonfixValueIdentifier fixityTable << token_ Token.Equal)
-    old         <- nonfixLongValueIdentifier fixityTable
+    new <- try (nonfixValueIdentifier << token_ Token.Equal)
+    old <- nonfixLongValueIdentifier
     return Decl.ExnReplication { Decl.new, Decl.old }
 
   regular = do
-    fixityTable <- get
-    constructor <- nonfixValueIdentifier fixityTable
+    constructor <- nonfixValueIdentifier
     arg         <- optional (token_ Token.Of >> typ)
     return Decl.ExnBind { Decl.constructor, Decl.arg }
 
 -- Common functionality for chained bindings
 
-binds :: (FixityMonadParser parser)
-      => Token
-      -> (Parser () -> parser a)
-      -> parser (NonEmpty a)
+binds :: Token -> (Parser () -> Parser a) -> Parser (NonEmpty a)
 binds separator bind = do
   firstBind <- bind nothing
   andBinds  <- many $ bind (token_ separator)
@@ -273,7 +255,7 @@ binds separator bind = do
 
 -- Local blocks
 
-localInEnd :: (FixityMonadParser parser) => parser MDecl
+localInEnd :: Parser MDecl
 localInEnd = dbg ["declaration", "localInEnd"] . marked $ do
   -- Store old fixity table
   fixityTable <- get
@@ -291,7 +273,7 @@ localInEnd = dbg ["declaration", "localInEnd"] . marked $ do
 
   return Decl.Local { Decl.decl, Decl.body }
  where
-  applyFixityDecl :: (FixityMonadParser parser) => Decl -> parser ()
+  applyFixityDecl :: Decl -> Parser ()
   applyFixityDecl = \case
     Decl.Infix { Decl.precedence, Decl.idents } ->
       addToFixityTable precedence idents Associativity.Left
@@ -304,7 +286,7 @@ localInEnd = dbg ["declaration", "localInEnd"] . marked $ do
 
 -- Open directives
 
-open :: (FixityMonadParser parser) => parser MDecl
+open :: Parser MDecl
 open = dbg ["declaration", "open"] . marked $ do
   token_ Token.Open
   stridents <- some (long structureIdentifier)
@@ -312,38 +294,36 @@ open = dbg ["declaration", "open"] . marked $ do
 
 -- Fixity declarations
 
-nonfix :: (FixityMonadParser parser) => parser MDecl
+nonfix :: Parser MDecl
 nonfix = dbg ["declaration", "nonfix"] . marked $ do
   token_ Token.Nonfix
   idents <- some valueIdentifier
   modify $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
   return Decl.Nonfix { Decl.idents }
 
-infixrDecl :: (FixityMonadParser parser) => parser MDecl
+infixrDecl :: Parser MDecl
 infixrDecl = dbg ["declaration", "infixrDecl"] . marked $ do
   (precedence, idents) <- fixityDecl Token.Infixr
   addToFixityTable precedence idents Associativity.Right
   return Decl.Infixr { Decl.precedence, Decl.idents }
 
-infixDecl :: (FixityMonadParser parser) => parser MDecl
+infixDecl :: Parser MDecl
 infixDecl = dbg ["declaration", "infixDecl"] . marked $ do
   (precedence, idents) <- fixityDecl Token.Infix
   addToFixityTable precedence idents Associativity.Left
   return Decl.Infix { Decl.precedence, Decl.idents }
 
-addToFixityTable :: (FixityMonadParser parser)
-                 => Maybe Int
+addToFixityTable :: Maybe Int
                  -> NonEmpty MValueIdent
                  -> Associativity
-                 -> parser ()
+                 -> Parser ()
 addToFixityTable precedence idents associativity =
   modify $ FixityTable.addOperators (NonEmpty.map Marked.value idents)
                                     associativity
                                     (fromMaybe 0 precedence)
 
-fixityDecl :: (MonadParser parser)
-           => Token
-           -> parser (Maybe FixityTable.Precedence, NonEmpty MValueIdent)
+fixityDecl :: Token
+           -> Parser (Maybe FixityTable.Precedence, NonEmpty MValueIdent)
 fixityDecl keyword = do
   token_ keyword
   precedence <- optional integer
@@ -354,5 +334,5 @@ fixityDecl keyword = do
     else return (fromIntegral <$> precedence, ident)
  where
   -- | Parses an integer literal (in any base)
-  integer :: (MonadParser parser) => parser Integer
+  integer :: Parser Integer
   integer = decimal <|> hexadecimal

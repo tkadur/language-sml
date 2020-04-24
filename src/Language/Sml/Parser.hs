@@ -13,11 +13,14 @@ module Language.Sml.Parser
   )
 where
 
+import qualified Control.Monad.RWS.Strict      as RWS
 import qualified Text.Megaparsec               as M
 import qualified Text.Megaparsec.Error         as E
 import           Text.Pretty.Simple             ( pPrint )
 
 import           Language.Sml.Parser.DebugLevel ( DebugLevel )
+import qualified Language.Sml.Parser.Internal.FixityTable
+                                               as FixityTable
 import           Language.Sml.Parser.Internal.Parsers.Declaration
                                                 ( declaration )
 import           Language.Sml.Parser.Internal.Parsers.Expression
@@ -52,5 +55,9 @@ parseTest parser debugLevel input =
   where filename = ""
 
 runParser :: Parser a -> DebugLevel -> FilePath -> Stream -> Either Error a
-runParser parser debugLevel filename input =
-  runReader (M.runParserT (parser <* eof) filename input) debugLevel
+runParser parser debugLevel filename input = res
+ where
+  (res, ()) = RWS.evalRWS (M.runParserT (parser <* eof) filename input)
+                          debugLevel
+                          -- Start off with the infix operators provided by the basis
+                          FixityTable.basisFixityTable

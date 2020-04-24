@@ -274,7 +274,6 @@ instance Pretty Expr where
         |> hcat
         |> maybeExprParen prevPrecAssoc
 
-
     Case { expr, match } -> do
       prevPatternMatching <- getPatternMatching
       setPatternMatching False
@@ -294,7 +293,6 @@ instance Pretty Expr where
     Fn { match } -> do
       prevPatternMatching <- getPatternMatching
       setPatternMatching False
-
 
       prevPrecAssoc <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = fnPrec
@@ -321,8 +319,8 @@ instance Pretty Match where
     where separator = "| "
 
 instance Pretty MatchArm where
-  pretty MatchArm { lhs, rhs } =
-    pretty lhs <+> "=>" <> grouped (nest $ line <> grouped (pretty rhs))
+  pretty MatchArm { lhs, rhs } = grouped (pretty lhs) <+> "=>" <> grouped
+    (nest $ line <> grouped (pretty rhs))
 
 appPrec :: Int
 appPrec = 10

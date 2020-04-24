@@ -42,9 +42,6 @@ import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Common.Marked    as Marked
 import qualified Language.Sml.Common.Positive  as Positive
 import           Language.Sml.Parser.Internal.Basic
-                                         hiding ( Parser )
-import           Language.Sml.Parser.Internal.FixityTable
-                                                ( FixityTable )
 import qualified Language.Sml.Parser.Internal.FixityTable
                                                as FixityTable
 import           Language.Sml.Parser.Internal.Parsers.Literal
@@ -53,11 +50,10 @@ import qualified Language.Sml.Parser.Internal.Token
                                                as Token
 
 -- | Parses a value identifier which must not be infixed
-nonfixValueIdentifier :: (MonadParser parser)
-                      => FixityTable
-                      -> parser (MOp MValueIdent)
-nonfixValueIdentifier fixityTable = do
-  x <- op valueIdentifier
+nonfixValueIdentifier :: Parser (MOp MValueIdent)
+nonfixValueIdentifier = do
+  fixityTable <- get
+  x           <- op valueIdentifier
   case Marked.value x of
     Op.Ident ident
       | Marked.value ident `HashSet.member` FixityTable.operators fixityTable
@@ -67,11 +63,10 @@ nonfixValueIdentifier fixityTable = do
     _ -> return x
 
 -- | Parses a long value identifier which must not be infixed
-nonfixLongValueIdentifier :: (MonadParser parser)
-                          => FixityTable
-                          -> parser (MOp (MLong MValueIdent))
-nonfixLongValueIdentifier fixityTable = do
-  x <- op (long valueIdentifier)
+nonfixLongValueIdentifier :: Parser (MOp (MLong MValueIdent))
+nonfixLongValueIdentifier = do
+  fixityTable <- get
+  x           <- op (long valueIdentifier)
   case Marked.value <$> Marked.value x of
     Op.Ident Long.Long { Long.qualifiers = [], Long.ident }
       | Marked.value ident `HashSet.member` FixityTable.operators fixityTable
@@ -81,14 +76,14 @@ nonfixLongValueIdentifier fixityTable = do
     _ -> return x
 
 -- | Parses a value identifier
-valueIdentifier :: (MonadParser parser) => parser MValueIdent
+valueIdentifier :: Parser MValueIdent
 valueIdentifier = ValueIdent.ValueIdent <<$>> identifierOrEqual
 
 -- | Parses a structure identifier
-structureIdentifier :: (MonadParser parser) => parser MStructureIdent
+structureIdentifier :: Parser MStructureIdent
 structureIdentifier = StructureIdent.StructureIdent <<$>> alphanumeric
 
-typeVariable :: (MonadParser parser) => parser MTyVar
+typeVariable :: Parser MTyVar
 typeVariable = marked $ do
   ticks <- some (token_ Token.Tick)
   let leadingPrimes = Positive.positive (NonEmpty.length ticks)
@@ -97,14 +92,14 @@ typeVariable = marked $ do
 
   return TyVar.TyVar { TyVar.ident, TyVar.leadingPrimes }
 
-typeConstructor :: (MonadParser parser) => parser MTyCon
+typeConstructor :: Parser MTyCon
 typeConstructor = do
   ident <- identifier
   case Marked.value ident of
     "*" -> fail "* is not a valid type constructor"
     _   -> return (TyCon.TyCon <$> ident)
 
-label :: (MonadParser parser) => parser MLabel
+label :: Parser MLabel
 label = ident <|> numeric
  where
   ident   = Label.Ident <<$>> identifier
@@ -116,7 +111,7 @@ label = ident <|> numeric
       else return $ Label.Numeric (Positive.positive number)
 
 -- | Parses an identifier possible prefixed by op
-op :: (MonadParser parser) => parser ident -> parser (MOp ident)
+op :: Parser ident -> Parser (MOp ident)
 op ident = marked $ choice [with, without]
  where
   with = do
@@ -126,26 +121,26 @@ op ident = marked $ choice [with, without]
   without = Op.Ident <$> ident
 
 -- | Parses a possibly qualified identifier
-long :: (MonadParser parser, Show ident) => parser ident -> parser (MLong ident)
+long :: (Show ident) => Parser ident -> Parser (MLong ident)
 long p = dbg ["longIdentifier"] . marked $ do
   qualifiers <- quals
   ident      <- p
   return Long.Long { Long.qualifiers, Long.ident = ident }
  where
-  qual :: (MonadParser parser) => parser MStructureIdent
+  qual :: Parser MStructureIdent
   qual = do
     qualifier <- structureIdentifier
     token_ Token.Dot
     return qualifier
 
-  quals :: (MonadParser parser) => parser [MStructureIdent]
+  quals :: Parser [MStructureIdent]
   -- @try@ so we don't fail once we reach the end of the qualifiers
   quals = many (try qual)
 
-identifier :: (MonadParser parser) => parser (Marked Text)
+identifier :: Parser (Marked Text)
 identifier = alphanumeric <|> symbolic
 
-identifierOrEqual :: (MonadParser parser) => parser (Marked Text)
+identifierOrEqual :: Parser (Marked Text)
 identifierOrEqual = alphanumeric <|> symbolic <|> marked
   (tokenWith $ \case
     Token.Equal -> Just "="
@@ -153,14 +148,14 @@ identifierOrEqual = alphanumeric <|> symbolic <|> marked
   )
 
 -- | Alphanumeric identifiers
-alphanumeric :: (MonadParser parser) => parser (Marked Text)
+alphanumeric :: Parser (Marked Text)
 alphanumeric = dbg ["alphanumeric"] . marked . tokenWith $ \case
   Token.Alphanumeric s -> Just s
   _ -> Nothing
 
 
 -- | Symbolic identifiers
-symbolic :: (MonadParser parser) => parser (Marked Text)
+symbolic :: Parser (Marked Text)
 symbolic = dbg ["symbolic"] . marked . tokenWith $ \case
   Token.Symbolic s -> Just s
   _ -> Nothing
