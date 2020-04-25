@@ -128,10 +128,6 @@ xseq parser = dbg ["xseq"] $ choice [M.try sqnce, singleton, emptySeq]
     (parser `sepBy1` token_ Token.Comma)
 
 marked :: Parser a -> Parser (Marked a)
--- marked parser = do
---   x <- parser
---   let pos = Position.Position "" (Positive.positive 1) (Positive.positive 1)
---   return $ Marked.Marked x pos pos
 marked parser = do
   (parsed, value) <- M.match parser
   remaining       <- Stream.tokens <$> M.getInput
