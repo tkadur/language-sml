@@ -143,7 +143,7 @@ stream file rawInput tokens = Stream
 
   -- | Marks every character with its position
   mark :: String -> Input
-  mark = Vector.fromList . foldingMap
+  mark = Vector.fromList >>> foldingMap
     (\(line, col) c ->
       -- Update position based on current character
       ( case c of

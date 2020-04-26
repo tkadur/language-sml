@@ -40,7 +40,17 @@ dropUntil f xs = case (f xs, xs) of
 
 -- | @foldingMap@ is a version of @map@ that threads an accumulator
 --   through calls to @f@
-foldingMap :: (b -> a -> (b, c)) -> b -> [a] -> [c]
-foldingMap f z xs = case xs of
-  []      -> []
-  x : xs' -> let (z', x') = f z x in x' : foldingMap f z' xs'
+foldingMap :: forall a b c t
+            . (Traversable t)
+           => (b -> a -> (b, c))
+           -> b
+           -> t a
+           -> t c
+foldingMap f z xs = evalState (mapM f' xs) z
+ where
+  f' :: a -> State b c
+  f' x = do
+    acc <- get
+    let (acc', res) = f acc x
+    put acc'
+    return res
