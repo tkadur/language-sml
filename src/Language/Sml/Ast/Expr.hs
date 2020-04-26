@@ -26,8 +26,6 @@ data Expr
     { decl :: MDecl
     , exprs :: NonEmpty MExpr
     }
-    -- For convenience, we directly express application chains instead of
-    -- using nested @App@s.
   | App
     { lhs :: MExpr
     , rhs :: MExpr
