@@ -3,6 +3,7 @@ module Language.Sml.Parser.Internal.Parsers.Pattern where
 import           Control.Monad.Combinators      ( choice
                                                 , many
                                                 , sepBy
+                                                , sepBy1
                                                 )
 import           Text.Megaparsec                ( try )
 
@@ -61,7 +62,7 @@ pattern = dbg ["pattern"] $ do
     return Pat.As { Pat.ident, Pat.annot, Pat.as }
 
 atomicPattern :: Parser MPat
-atomicPattern = choice [wild, lit, vident, record, parens, tup, lst]
+atomicPattern = choice [wild, lit, vident, record, tupOrParens, lst]
  where
 
   -- Wildcard
@@ -71,9 +72,9 @@ atomicPattern = choice [wild, lit, vident, record, parens, tup, lst]
   lit = dbg ["pattern", "lit"] . marked $ Pat.Lit <$> literal
 
   -- Value identifier
-  -- @try@ to prevent failure from trying to parse infix operator as ident
-  vident = dbg ["pattern", "ident"] . marked $ try
-    (Pat.Ident <$> nonfixLongValueIdentifier)
+  vident = dbg ["pattern", "ident"] $ do
+    ident <- nonfixLongValueIdentifier
+    return $ Marked.replace ident (Pat.Ident ident)
 
   -- Record
   record = dbg ["typ", "record"] . marked $ Pat.Record <$> braces
@@ -87,9 +88,8 @@ atomicPattern = choice [wild, lit, vident, record, parens, tup, lst]
       return Pat.RowWild
 
     -- @try@ to prevent failure from tying to parse pun ident as label
-    regularRow = try $ do
-      lbl <- label
-      token_ Token.Equal
+    regularRow = do
+      lbl <- try (label << token_ Token.Equal)
       pat <- pattern
       return Pat.Row { Pat.label = lbl, Pat.pat }
 
@@ -99,12 +99,28 @@ atomicPattern = choice [wild, lit, vident, record, parens, tup, lst]
       as    <- optional (token_ Token.As >> pattern)
       return Pat.RowPun { Pat.ident, Pat.annot, Pat.as }
 
-  -- Parenthesized
-  -- @try@ to prevent failure from consuming the start of a tuple
-  parens = try (parenthesized pattern)
+  -- For efficiency reasons we
+  --   - do manual lookahead to avoid overusing @try@
+  --   - Use span information from the surrounding parens to avoid overusing @marked@
+  tupOrParens = do
+    l        <- marked (token_ Token.Lparen)
+    maybePat <- optional pattern
+    let expected = [Token.Rparen, Token.Comma]
+    next <- marked
+      $ tokenWith (\t -> if t `elem` expected then Just t else Nothing)
 
-  -- Tuple
-  tup    = marked $ Pat.Tuple <$> tuple pattern
+    (pat, r) <- case (maybePat, Marked.value next) of
+      (Nothing , Token.Rparen) -> return (Pat.Tuple [], void next)
+      (Just pat, Token.Rparen) -> return (Marked.value pat, void next)
+      (Just pat, Token.Comma ) -> do
+        pats <- pattern `sepBy1` token_ Token.Comma
+        r    <- marked (token_ Token.Rparen)
+        return (Pat.Tuple (pat : pats), r)
+      (_, t)
+        | t `elem` expected -> fail $ "invalid following token " <> show t
+        | otherwise         -> error $ "Impossible token " <> show t
+
+    return $ Marked.merge l r pat
 
   -- List
-  lst    = marked $ Pat.List <$> list pattern
+  lst = marked $ Pat.List <$> list pattern

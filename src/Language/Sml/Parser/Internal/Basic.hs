@@ -12,8 +12,6 @@ module Language.Sml.Parser.Internal.Basic
   , brackets
   , parenthesized
   , list
-  , tuple
-  , xseq
   , marked
   )
 where
@@ -21,15 +19,14 @@ where
 import           Control.Monad.Combinators      ( between
                                                 , choice
                                                 , sepBy
+                                                , sepBy1
                                                 )
-import           Control.Monad.Combinators.NonEmpty
-                                                ( sepBy1 )
 import           Control.Monad.RWS.Strict       ( RWS )
 import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Data.Set                      as Set
 import qualified Data.Vector                   as Vector
 import qualified Text.Megaparsec               as M
-import qualified Text.Megaparsec.Debug         as Megaparsec.Debug
+import qualified Text.Megaparsec.Debug         as M.Debug
 
 import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Common.Marked    as Marked
@@ -65,7 +62,7 @@ dbg label parser = do
     DebugLevel.On  -> dbg_parser
     DebugLevel.ForLabels labels | any (`isPrefixOf` label) labels -> dbg_parser
                                 | otherwise -> parser
-  where dbg_parser = Megaparsec.Debug.dbg (intercalate "." label) parser
+  where dbg_parser = M.Debug.dbg (intercalate "." label) parser
 
 -- | Consumes no input and succeeds
 nothing :: Parser ()
@@ -101,31 +98,6 @@ parenthesized =
 -- | @list p@ parses a list, parsing each element with @p@
 list :: (Show a) => Parser a -> Parser [a]
 list parser = dbg ["list"] $ brackets (parser `sepBy` token_ Token.Comma)
-
--- | @tuple p@ parses a tuple, parsing each element with @p@
-tuple :: (Show a) => Parser a -> Parser [a]
-tuple parser = dbg ["tuple"]
-  $ parenthesized (choice [nonemptyTuple, emptyTuple])
- where
-    -- Tuple of at least 2 elements
-  nonemptyTuple = NonEmpty.toList <$> parser `sepBy2` token_ Token.Comma
-
-  emptyTuple    = return []
-
--- | @xseq p@ parses a @pseq@ as given in the definition
-xseq :: (Show a) => Parser a -> Parser [a]
--- @try@ to avoid consuming parens from the start of a pattern instead of
--- from a xseq.
--- TODO(tkadur) This is a huge hack and only works cause @xseq@ is
--- only ever used for tyvarseqs
-xseq parser = dbg ["xseq"] $ choice [M.try sqnce, singleton, emptySeq]
- where
-  emptySeq  = dbg ["xseq", "emptySeq"] $ return []
-
-  singleton = dbg ["xseq", "singleton"] $ (: []) <$> parser
-
-  sqnce     = dbg ["xseq", "sequence"] $ NonEmpty.toList <$> parenthesized
-    (parser `sepBy1` token_ Token.Comma)
 
 marked :: Parser a -> Parser (Marked a)
 marked parser = do

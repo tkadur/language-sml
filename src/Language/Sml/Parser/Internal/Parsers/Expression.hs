@@ -5,6 +5,7 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( sepBy1 )
+import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( lookAhead
                                                 , observing
                                                 , try
@@ -14,8 +15,6 @@ import           Language.Sml.Ast.Expr          ( MExpr )
 import qualified Language.Sml.Ast.Expr         as Expr
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
-import           Language.Sml.Parser.Internal.Combinators
-                                                ( sepBy2 )
 import qualified Language.Sml.Parser.Internal.FixityTable
                                                as FixityTable
 import {-# SOURCE #-} Language.Sml.Parser.Internal.Parsers.Declaration
@@ -144,12 +143,13 @@ expression = dbg ["expression"] $ do
 
 atomicExpression :: Parser MExpr
 atomicExpression = dbg ["expression", "atomicExpression"] $ choice
-  [lit, vident, record, recordSelector, tup, lst, sqnce, letInEnd, parens]
+  [lit, vident, record, recordSelector, tupOrParensOrSequence, lst, letInEnd]
  where
   lit    = marked $ Expr.Lit <$> literal
 
-  -- @try@ to prevent failure from trying to parse infix operator as bareIdentifier
-  vident = marked . try $ Expr.Ident <$> nonfixLongValueIdentifier
+  vident = do
+    ident <- nonfixLongValueIdentifier
+    return $ Marked.replace ident (Expr.Ident ident)
 
   record = marked $ Expr.Record <$> braces (row `sepBy` token_ Token.Comma)
    where
@@ -165,14 +165,34 @@ atomicExpression = dbg ["expression", "atomicExpression"] $ choice
     lab <- label
     return $ Expr.RecordSelector lab
 
-  -- @try@ to prevent conflict with sqnce/parens
-  tup   = marked . try $ Expr.Tuple <$> tuple expression
+  -- For efficiency reasons we
+  --   - do manual lookahead to avoid overusing @try@
+  --   - Use span information from the surrounding parens to avoid overusing @marked@
+  tupOrParensOrSequence = do
+    l         <- marked (token_ Token.Lparen)
+    maybeExpr <- optional expression
+    let expected = [Token.Rparen, Token.Comma, Token.Semicolon]
+    next <- marked
+      $ tokenWith (\t -> if t `elem` expected then Just t else Nothing)
 
-  lst   = marked $ Expr.List <$> list expression
+    (expr, r) <- case (maybeExpr, Marked.value next) of
+      (Nothing  , Token.Rparen) -> return (Expr.Tuple [], void next)
+      (Just expr, Token.Rparen) -> return (Marked.value expr, void next)
+      (Just expr, Token.Comma ) -> do
+        exprs <- expression `sepBy1` token_ Token.Comma
+        r     <- marked (token_ Token.Rparen)
+        return (Expr.Tuple (expr : NonEmpty.toList exprs), r)
+      (Just expr, Token.Semicolon) -> do
+        exprs <- expression `sepBy1` token_ Token.Semicolon
+        r     <- marked (token_ Token.Rparen)
+        return (Expr.Sequence $ NonEmpty.cons expr exprs, r)
+      (_, t)
+        | t `elem` expected -> fail $ "invalid following token " <> show t
+        | otherwise         -> error $ "Impossible token " <> show t
 
-  -- @try@ to prevent conflict with parens
-  sqnce = marked . try $ Expr.Sequence <$> parenthesized
-    (expression `sepBy2` token_ Token.Semicolon)
+    return $ Marked.merge l r expr
+
+  lst      = marked $ Expr.List <$> list expression
 
   letInEnd = marked $ do
     token_ Token.Let
@@ -187,8 +207,6 @@ atomicExpression = dbg ["expression", "atomicExpression"] $ choice
     exprs <- expression `sepBy1` token_ Token.Semicolon
     token_ Token.End
     return Expr.Let { Expr.decl, Expr.exprs }
-
-  parens = parenthesized expression
 
 match :: Parser Expr.Match
 match = matchArm `sepBy1` token_ Token.Pipe

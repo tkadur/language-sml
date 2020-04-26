@@ -16,6 +16,8 @@ import qualified Control.Monad.Combinators.Expr
 import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
+import           Language.Sml.Ast.Ident.Long    ( MLong )
+import           Language.Sml.Ast.Ident.TyCon   ( MTyCon )
 import           Language.Sml.Ast.Typ           ( MTyp )
 import qualified Language.Sml.Ast.Typ          as Typ
 import qualified Language.Sml.Common.Marked    as Marked
@@ -43,8 +45,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
   -- Handle left-recursive tycon application
   typ'' = do
     arg         <- typ'''
-    -- @try@ to prevent trying to parse * as tycon
-    maybeTycons <- many (long $ try typeConstructor)
+    maybeTycons <- many longTyCon
     return $ case nonEmpty maybeTycons of
       Nothing     -> arg
       Just tycons -> Marked.merge
@@ -69,8 +70,7 @@ typ = dbg ["typ"] $ E.makeExprParser typ' operatorTable
 multiArgApp :: Parser MTyp
 multiArgApp = dbg ["typ", "multiArgApp"] . marked . try $ do
   args   <- parenthesized (typ `sepBy1` token_ Token.Comma)
-  -- @try@ to prevent trying to parse * as tycon
-  tycons <- some (long $ try typeConstructor)
+  tycons <- some longTyCon
 
   return Typ.App { Typ.tycons, Typ.args }
 
@@ -79,8 +79,11 @@ parens :: Parser MTyp
 parens = parenthesized typ
 
 unappliedTycon :: Parser MTyp
+unappliedTycon = marked $ Typ.TyCon <$> longTyCon
+
+longTyCon :: Parser (MLong MTyCon)
 -- @try@ to prevent conflict with *
-unappliedTycon = marked $ Typ.TyCon <$> try (long typeConstructor)
+longTyCon = try (long typeConstructor)
 
 tyvar :: Parser MTyp
 tyvar = dbg ["typ", "tyvar"] . marked $ Typ.TyVar <$> typeVariable

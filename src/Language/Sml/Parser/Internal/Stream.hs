@@ -53,9 +53,9 @@ instance M.Stream Stream where
 
   takeN_ :: Int -> Stream -> Maybe (STokens, Stream)
   takeN_ n strm@Stream {..}
-    | n <= 0      = Just (Vector.empty, strm)
-    | null tokens = Nothing
-    | otherwise   = Just $ take_ strm (Vector.splitAt n $ strmToStokens strm)
+    | n <= 0    = Just (Vector.empty, strm)
+    | Vector.null tokens = Nothing
+    | otherwise = Just $ take_ strm (Vector.splitAt n $ strmToStokens strm)
 
   takeWhile_ :: (SToken -> Bool) -> Stream -> (STokens, Stream)
   takeWhile_ f strm = take_ strm (Vector.span f $ strmToStokens strm)

@@ -65,7 +65,7 @@ nonfixValueIdentifier = try $ do
 
 -- | Parses a long value identifier which must not be infixed
 nonfixLongValueIdentifier :: Parser (MOp (MLong MValueIdent))
-nonfixLongValueIdentifier = do
+nonfixLongValueIdentifier = try $ do
   fixityTable <- get
   x           <- op (long valueIdentifier)
   case Marked.value <$> Marked.value x of
@@ -76,6 +76,7 @@ nonfixLongValueIdentifier = do
       -> return x
     _ -> return x
 
+-- | Parses a long value identifier which must be infixed
 infixValueIdentifier :: Parser MValueIdent
 infixValueIdentifier = try $ do
   fixityTable <- get

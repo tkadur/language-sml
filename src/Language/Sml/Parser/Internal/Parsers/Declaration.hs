@@ -6,6 +6,7 @@ where
 import           Control.Monad.Combinators      ( choice
                                                 , many
                                                 , sepEndBy
+                                                , sepBy1
                                                 )
 import           Control.Monad.Combinators.NonEmpty
                                                 ( some )
@@ -21,6 +22,7 @@ import           Language.Sml.Ast.Decl          ( Decl
                                                 , MDecl
                                                 )
 import qualified Language.Sml.Ast.Decl         as Decl
+import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
 import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( MValueIdent )
 import qualified Language.Sml.Common.Marked    as Marked
@@ -84,7 +86,7 @@ declaration = dbg ["declaration"] $ do
 val :: Parser MDecl
 val = dbg ["declaration", "val"] . marked $ do
   token_ Token.Val
-  tyvars   <- xseq typeVariable
+  tyvars   <- tyvarseq
   valbinds <- binds Token.And valBind
   return Decl.Val { Decl.tyvars, Decl.valbinds }
 
@@ -107,7 +109,7 @@ valBind start = dbg ["delaration", "val", "valbind"] . marked $ do
 fun :: Parser MDecl
 fun = dbg ["declaration", "fun"] . marked $ do
   token_ Token.Fun
-  tyvars   <- xseq typeVariable
+  tyvars   <- tyvarseq
   funbinds <- binds Token.And funBind
   return Decl.Fun { Decl.tyvars, Decl.funbinds }
 
@@ -165,7 +167,7 @@ typAlias = dbg ["declaration", "typAlias"] . marked $ do
 typBind :: Parser () -> Parser Decl.MTypBind
 typBind start = dbg ["declaration", "typAlias", "typBind"] . marked $ do
   start
-  tyvars <- xseq typeVariable
+  tyvars <- tyvarseq
   tycon  <- typeConstructor
   token_ Token.Equal
   t <- typ
@@ -199,7 +201,7 @@ datatype = dbg ["declaration", "datatype"] . marked $ do
 datBind :: Parser () -> Parser Decl.MDatBind
 datBind start = dbg ["declaration", "datatype", "datBind"] . marked $ do
   start
-  tyvars <- xseq typeVariable
+  tyvars <- tyvarseq
   tycon  <- typeConstructor
   token_ Token.Equal
   conbinds <- binds Token.Pipe conBind
@@ -339,3 +341,28 @@ fixityDecl keyword = do
   -- | Parses an integer literal (in any base)
   integer :: Parser Integer
   integer = decimal <|> hexadecimal
+
+-- Helpers
+
+-- Manual lookahead doesn't seem to be much of a performance win here.
+-- TODO(tkadur) consider switching back to just using @try@
+tyvarseq :: Parser [MTyVar]
+tyvarseq = do
+  maybeL <- optional (token_ Token.Lparen)
+  maybeX <- optional typeVariable
+
+  case (maybeL, maybeX) of
+    (Nothing, Nothing) -> return []
+    (Nothing, Just x ) -> return [x]
+    (Just (), Just x ) -> do
+      next <- tokenWith
+        (\t -> if t `elem` [Token.Rparen, Token.Comma] then Just t else Nothing)
+
+      case next of
+        Token.Rparen -> return [x]
+        Token.Comma  -> do
+          xs <- typeVariable `sepBy1` token_ Token.Comma
+          token_ Token.Rparen
+          return (x : xs)
+        _ -> error $ "Impossible token " <> show next
+    (Just (), Nothing) -> fail "Unclosed ("
