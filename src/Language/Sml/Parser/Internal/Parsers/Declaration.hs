@@ -11,7 +11,8 @@ import           Control.Monad.Combinators      ( choice
 import           Control.Monad.Combinators.NonEmpty
                                                 ( some )
 import qualified Data.List.NonEmpty            as NonEmpty
-import           Text.Megaparsec                ( observing
+import           Text.Megaparsec                ( lookAhead
+                                                , observing
                                                 , try
                                                 )
 

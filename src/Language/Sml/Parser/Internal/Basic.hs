@@ -17,12 +17,9 @@ module Language.Sml.Parser.Internal.Basic
 where
 
 import           Control.Monad.Combinators      ( between
-                                                , choice
                                                 , sepBy
-                                                , sepBy1
                                                 )
 import           Control.Monad.RWS.Strict       ( RWS )
-import qualified Data.List.NonEmpty            as NonEmpty
 import qualified Data.Set                      as Set
 import qualified Data.Vector                   as Vector
 import qualified Text.Megaparsec               as M
@@ -37,8 +34,6 @@ import qualified Language.Sml.Parser.DebugLevel
                                                as DebugLevel
 import {-# SOURCE #-} Language.Sml.Parser.Internal.FixityTable
                                                 ( FixityTable )
-import           Language.Sml.Parser.Internal.Combinators
-                                                ( sepBy2 )
 import           Language.Sml.Parser.Internal.Token
                                                 ( Token )
 import qualified Language.Sml.Parser.Internal.Token
@@ -115,7 +110,7 @@ marked parser = do
                                  , Marked.startPosition
                                  , Marked.endPosition   = startPosition
                                  }
-    -- If nothing was consumed and no input is left, last rsort
+    -- If nothing was consumed and no input is left, last resort
     (True, True) -> do
       M.SourcePos {..} <- M.getSourcePos
 

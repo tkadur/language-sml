@@ -48,7 +48,7 @@ expression = dbg ["expression"] $ do
       t <- typ
       return $ Marked.merge expr t (Expr.Annot { Expr.expr, Expr.typ = t })
     Just Token.Andalso -> do
-      -- Check if next token is paren
+      -- Check if following expression is parenthesized
       -- TODO(tkadur) this is a terribly hacky way to handle precedence
       parens <-
         either (const False) (const True)
