@@ -78,7 +78,7 @@ instance Pretty Expr where
         , line
         , "in"
         , nest
-          (line <> (sequenced . mapM (grouped . pretty) $ NonEmpty.toList exprs))
+          (line <> sequenced (mapM (grouped . pretty) $ NonEmpty.toList exprs))
         , line
         , endsWith "end"
         ]
@@ -207,7 +207,7 @@ instance Pretty Expr where
       maybeExprPatternMatchingParen
         prevPrecAssoc
         prevPatternMatching
-        (grouped (pretty expr) <+> "handle" <+> pretty match)
+        (grouped $ grouped (pretty expr) <> line <> "handle" <+> pretty match)
 
     Raise expr -> do
       setPatternMatching False
@@ -320,7 +320,11 @@ instance Pretty Match where
 
 instance Pretty MatchArm where
   pretty MatchArm { lhs, rhs } = grouped (pretty lhs) <+> "=>" <> grouped
-    (nest $ line <> grouped (pretty rhs))
+    (nest $ line <> grouped prettyRhs)
+   where
+    prettyRhs = do
+      setPatternMatching True
+      pretty rhs
 
 appPrec :: Int
 appPrec = 10
