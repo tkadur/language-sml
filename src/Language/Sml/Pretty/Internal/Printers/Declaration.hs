@@ -146,10 +146,10 @@ instance Pretty FunClause where
 
       -- Only allow the body to be inline with the "=" if the whole thing fits on one line
       in  grouped
-            (   infixPart
+            (  infixPart
             -- Only allow the return type to be inline with the args if they all fit on one line
-            <+> grouped (align $ argsPretty <> returnTypPretty <+> equals)
-            <>  prettyBody body
+            <> grouped (align $ argsPretty <> returnTypPretty <+> equals)
+            <> prettyBody body
             )
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
