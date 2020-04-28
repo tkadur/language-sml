@@ -104,6 +104,7 @@ library:
     - Language.Sml.Pretty.Comments
   ghc-options:
     - -Wall
+    - -foptimal-applicative-do
     - -O2
 
 tests:

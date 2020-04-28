@@ -235,7 +235,7 @@ instance Pretty Expr where
       ifExprDoc <- grouped (pretty ifExpr)
       let ifExprPretty = return ifExprDoc
 
-      setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
+      resetExprPrecAssoc
       setPatternMatching prevPatternMatching
       ungroupedElseExprDoc <- bracketPatternMatching (pretty elseExpr)
       let ungroupedElseExprPretty = return ungroupedElseExprDoc
@@ -270,7 +270,7 @@ instance Pretty Expr where
       condDoc <- grouped (pretty cond)
       let condPretty = return condDoc
 
-      setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
+      resetExprPrecAssoc
       setPatternMatching prevPatternMatching
       bodyDoc <- bracketPatternMatching (grouped $ pretty body)
       let bodyPretty = return bodyDoc
