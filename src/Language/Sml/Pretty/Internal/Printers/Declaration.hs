@@ -142,15 +142,12 @@ instance Pretty FunClause where
             Nothing  -> emptyDoc
             Just typ -> line <> colon <+> grouped (align $ pretty typ)
 
-          bodyPretty = do
-            setPatternMatching True
-            nest (line <> grouped (pretty body))
       -- Only allow the body to be inline with the "=" if the whole thing fits on one line
       in  grouped
             (   infixPart
             -- Only allow the return type to be inline with the args if they all fit on one line
             <+> grouped (align $ argsPretty <> returnTypPretty <+> equals)
-            <>  bodyPretty
+            <>  prettyBody body
             )
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
       let args       = NonEmpty.toList nonfixArgs
@@ -161,17 +158,20 @@ instance Pretty FunClause where
             Nothing  -> emptyDoc
             Just typ -> line <> colon <+> grouped (align $ pretty typ)
 
-          bodyPretty = do
-            setPatternMatching True
-            nest (line <> grouped (pretty body))
       -- Only allow the body to be inline with the "=" if the whole thing fits on one line
       in  grouped
             (   pretty nonfixName
             -- Only allow the return type to be inline with the args if they all fit on one line
             <+> grouped (align $ argsPretty <> returnTypPretty <+> equals)
-            <>  bodyPretty
+            <>  prettyBody body
             )
    where
+    prettyBody body = do
+      setPatternMatching True
+      res <- nest (line <> grouped (pretty body))
+      setPatternMatching False
+      return res
+
     -- Hack to make argument parenthesized when necessary
     -- Pretend that they're inside a higher-than-maximum precedence
     -- operator

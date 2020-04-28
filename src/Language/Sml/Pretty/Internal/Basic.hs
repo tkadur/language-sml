@@ -7,6 +7,7 @@ module Language.Sml.Pretty.Internal.Basic
   , getIndent
   , startsWith
   , endsWith
+  , bracketPatternMatching
   , maybeExprPatternMatchingParen
   , maybeExprParen
   , maybeTypParen
@@ -221,6 +222,15 @@ endsWith end = do
                                                , Marked.startPosition = endPos
                                                , Marked.endPosition   = endPos
                                                }
+
+-- @bracketPatternMatching x@ stores the pattern matching state,
+-- pretty-prints @x@, and restores the pattern matching state.
+bracketPatternMatching :: Doc ann -> Doc ann
+bracketPatternMatching doc = do
+  prevPatternMatching <- getPatternMatching
+  doc' <- doc
+  setPatternMatching prevPatternMatching
+  return doc'
 
 -- | @maybeExprParen prevPrecAssoc doc = doc'@
 --   where @doc'@ might be parenthesized based on  @prevPrecAssoc@,

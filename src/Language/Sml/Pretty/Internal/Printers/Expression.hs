@@ -37,12 +37,10 @@ instance Pretty Expr where
   pretty = \case
     Lit lit -> do
       resetExprPrecAssoc
-      setPatternMatching False
       pretty lit
 
     Ident ident -> do
       resetExprPrecAssoc
-      setPatternMatching False
       pretty ident
 
     Record rows -> do
@@ -52,7 +50,6 @@ instance Pretty Expr where
 
     RecordSelector label -> do
       resetExprPrecAssoc
-      setPatternMatching False
       startsWith "#" <> pretty label
 
     Tuple exprs -> do
@@ -87,7 +84,6 @@ instance Pretty Expr where
         |> hcat
 
     App { lhs, rhs } -> do
-      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = appPrec
                                    , associativity = appAssoc
@@ -95,11 +91,11 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- pretty lhs
+      lhsDoc <- bracketPatternMatching (pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- pretty rhs
+      rhsDoc <- bracketPatternMatching (pretty rhs)
       let rhsPretty = return rhsDoc
 
       setExprPrecAssoc newPrecAssoc
@@ -110,7 +106,6 @@ instance Pretty Expr where
       groupedIf prevPrecAssoc (== appPrec) res
 
     InfixApp { lhs, op, precedence, associativity, rhs } -> do
-      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence
                                    , associativity
@@ -118,11 +113,11 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- pretty lhs
+      lhsDoc <- bracketPatternMatching (pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- pretty rhs
+      rhsDoc <- bracketPatternMatching (pretty rhs)
       let rhsPretty = return rhsDoc
 
       setExprPrecAssoc newPrecAssoc
@@ -142,12 +137,14 @@ instance Pretty Expr where
                                  , associativity = annotAssoc
                                  , direction     = Associativity.Left
                                  }
-      maybeExprParen
-        prevPrecAssoc
-        (grouped (pretty expr) <+> colon <+> grouped (align $ pretty typ))
+
+      let exprPretty = bracketPatternMatching (grouped $ pretty expr)
+
+      let typPretty  = bracketPatternMatching (grouped $ align (pretty typ))
+
+      maybeExprParen prevPrecAssoc (exprPretty <+> colon <+> typPretty)
 
     Andalso { lhs, rhs } -> do
-      setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = andalsoPrec
                                    , associativity = andalsoAssoc
@@ -155,11 +152,11 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- grouped (pretty lhs)
+      lhsDoc <- bracketPatternMatching (grouped $ pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- grouped (pretty rhs)
+      rhsDoc <- bracketPatternMatching (grouped $ pretty rhs)
       let rhsPretty = return rhsDoc
 
       setExprPrecAssoc newPrecAssoc
@@ -180,11 +177,11 @@ instance Pretty Expr where
                                    }
 
       setExprPrecAssoc newPrecAssoc
-      lhsDoc <- grouped (pretty lhs)
+      lhsDoc <- bracketPatternMatching (grouped $ pretty lhs)
       let lhsPretty = return lhsDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      rhsDoc <- grouped (pretty rhs)
+      rhsDoc <- bracketPatternMatching (grouped $ pretty rhs)
       let rhsPretty = return rhsDoc
 
       setExprPrecAssoc newPrecAssoc
@@ -198,9 +195,8 @@ instance Pretty Expr where
 
     Handle { expr, match } -> do
       prevPatternMatching <- getPatternMatching
-      setPatternMatching False
 
-      prevPrecAssoc <- getExprPrecAssoc
+      prevPrecAssoc       <- getExprPrecAssoc
       setExprPrecAssoc PrecAssoc { precedence    = handlePrec
                                  , associativity = handleAssoc
                                  , direction     = Associativity.Left
@@ -217,10 +213,13 @@ instance Pretty Expr where
                                  , associativity = raiseAssoc
                                  , direction     = Associativity.Right
                                  }
-      maybeExprParen prevPrecAssoc
-                     (startsWith "raise" <+> grouped (pretty expr))
+
+      let exprPretty = bracketPatternMatching (grouped $ pretty expr)
+
+      maybeExprParen prevPrecAssoc (startsWith "raise" <+> exprPretty)
 
     If { cond, ifExpr, elseExpr } -> do
+      prevPatternMatching <- getPatternMatching
       setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = ifPrec
@@ -237,7 +236,8 @@ instance Pretty Expr where
       let ifExprPretty = return ifExprDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      ungroupedElseExprDoc <- pretty elseExpr
+      setPatternMatching prevPatternMatching
+      ungroupedElseExprDoc <- bracketPatternMatching (pretty elseExpr)
       let ungroupedElseExprPretty = return ungroupedElseExprDoc
       let elseExprPretty          = grouped ungroupedElseExprPretty
 
@@ -258,6 +258,7 @@ instance Pretty Expr where
         |> maybeExprParen prevPrecAssoc
 
     While { cond, body } -> do
+      prevPatternMatching <- getPatternMatching
       setPatternMatching False
       prevPrecAssoc <- getExprPrecAssoc
       let newPrecAssoc = PrecAssoc { precedence    = whilePrec
@@ -270,7 +271,8 @@ instance Pretty Expr where
       let condPretty = return condDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      bodyDoc <- grouped (pretty body)
+      setPatternMatching prevPatternMatching
+      bodyDoc <- bracketPatternMatching (grouped $ pretty body)
       let bodyPretty = return bodyDoc
 
       setExprPrecAssoc newPrecAssoc
