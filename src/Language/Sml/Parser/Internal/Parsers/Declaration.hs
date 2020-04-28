@@ -11,8 +11,7 @@ import           Control.Monad.Combinators      ( choice
 import           Control.Monad.Combinators.NonEmpty
                                                 ( some )
 import qualified Data.List.NonEmpty            as NonEmpty
-import           Text.Megaparsec                ( lookAhead
-                                                , observing
+import           Text.Megaparsec                ( observing
                                                 , try
                                                 )
 
@@ -345,25 +344,14 @@ fixityDecl keyword = do
 
 -- Helpers
 
--- Manual lookahead doesn't seem to be much of a performance win here.
--- TODO(tkadur) consider switching back to just using @try@
 tyvarseq :: Parser [MTyVar]
-tyvarseq = do
-  maybeL <- optional (token_ Token.Lparen)
-  maybeX <- optional typeVariable
+-- @try@ to avoid consuming parens from the start of a pattern instead of
+-- from a xseq.
+tyvarseq = dbg ["tyvarseq"] $ choice [try sqnce, singleton, emptySeq]
+ where
+  emptySeq  = dbg ["tyvarseq", "emptySeq"] $ return []
 
-  case (maybeL, maybeX) of
-    (Nothing, Nothing) -> return []
-    (Nothing, Just x ) -> return [x]
-    (Just (), Just x ) -> do
-      next <- tokenWith
-        (\t -> if t `elem` [Token.Rparen, Token.Comma] then Just t else Nothing)
+  singleton = dbg ["tyvarseq", "singleton"] $ (: []) <$> typeVariable
 
-      case next of
-        Token.Rparen -> return [x]
-        Token.Comma  -> do
-          xs <- typeVariable `sepBy1` token_ Token.Comma
-          token_ Token.Rparen
-          return (x : xs)
-        _ -> error $ "Impossible token " <> show next
-    (Just (), Nothing) -> fail "Unclosed ("
+  sqnce     = dbg ["tyvarseq", "sequence"]
+    $ parenthesized (typeVariable `sepBy1` token_ Token.Comma)
