@@ -8,6 +8,7 @@ import           Language.Sml.Ast.Associativity
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
 import           Language.Sml.Ast.Expr
+import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Pretty.Internal.Basic
 import {-# SOURCE #-} Language.Sml.Pretty.Internal.Printers.Declaration
                                                 ( )
@@ -236,8 +237,9 @@ instance Pretty Expr where
       let ifExprPretty = return ifExprDoc
 
       setExprPrecAssoc newPrecAssoc { direction = Associativity.Right }
-      elseExprDoc <- grouped (pretty elseExpr)
-      let elseExprPretty = return elseExprDoc
+      ungroupedElseExprDoc <- pretty elseExpr
+      let ungroupedElseExprPretty = return ungroupedElseExprDoc
+      let elseExprPretty          = grouped ungroupedElseExprPretty
 
       setExprPrecAssoc newPrecAssoc
       [ startsWith "if "
@@ -246,7 +248,10 @@ instance Pretty Expr where
         , nest (line <> ifExprPretty)
         , line
         , "else"
-        , nest (line <> elseExprPretty)
+        -- Special handling for nested if/then/else
+        , case Marked.value elseExpr of
+          If{} -> space <> ungroupedElseExprPretty
+          _    -> nest (line <> elseExprPretty)
         ]
         |> sequence
         |> hcat
