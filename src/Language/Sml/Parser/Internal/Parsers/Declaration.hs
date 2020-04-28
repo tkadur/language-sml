@@ -127,11 +127,12 @@ funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
   -- TODO(tkadur) enforce parens as the standard requires
   infixClause = do
     -- @try@ to prevent conflict with nonfix clause
-    (lhs, infixName) <- try $ do
-      lhs       <- atomicPattern
-      infixName <- infixValueIdentifier
-      return (lhs, infixName)
-    rhs       <- atomicPattern
+    let infixPart = do
+          lhs       <- atomicPattern
+          infixName <- infixValueIdentifier
+          rhs       <- atomicPattern
+          return (lhs, infixName, rhs)
+    (lhs, infixName, rhs) <- try (try infixPart <|> parenthesized infixPart)
     infixArgs <- many atomicPattern
     returnTyp <- optional (token_ Token.Colon >> typ)
     token_ Token.Equal
