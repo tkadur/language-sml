@@ -149,8 +149,7 @@ instance Pretty FunClause where
       in  grouped
             (   infixPart
             -- Only allow the return type to be inline with the args if they all fit on one line
-            <>  grouped (align $ argsPretty <> returnTypPretty)
-            <+> equals
+            <+> grouped (align $ argsPretty <> returnTypPretty <+> equals)
             <>  bodyPretty
             )
     NonfixClause { nonfixName, nonfixArgs, returnTyp, body } ->
@@ -169,8 +168,7 @@ instance Pretty FunClause where
       in  grouped
             (   pretty nonfixName
             -- Only allow the return type to be inline with the args if they all fit on one line
-            <+> grouped (align $ argsPretty <> returnTypPretty)
-            <+> equals
+            <+> grouped (align $ argsPretty <> returnTypPretty <+> equals)
             <>  bodyPretty
             )
    where
