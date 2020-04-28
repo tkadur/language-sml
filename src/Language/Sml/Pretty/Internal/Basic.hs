@@ -7,8 +7,8 @@ module Language.Sml.Pretty.Internal.Basic
   , getIndent
   , startsWith
   , endsWith
-  , getMultipleFunClauses
-  , withFunClauses
+  , getMultipleMatchClauses
+  , withMatchClauses
   , bracketPatternMatching
   , maybeExprPatternMatchingParen
   , maybeExprParen
@@ -92,7 +92,7 @@ data Config
     -- Keep track of whether we're currently pretty-printing a pattern match
     -- Needed to properly parenthesize nested pattern matching
     , patternMatching :: Bool
-    , multipleFunClauses :: Bool
+    , multipleMatchClauses :: Bool
     }
   deriving (Show)
 
@@ -113,11 +113,11 @@ evalDocState indentation comments docState = evalState
   (unDocState $ flushRemainingComments docState)
   (Config { comments
           , indentation
-          , positions          = []
-          , exprPrecAssoc      = Nothing
-          , typPrecAssoc       = Nothing
-          , patternMatching    = False
-          , multipleFunClauses = False
+          , positions       = []
+          , exprPrecAssoc   = Nothing
+          , typPrecAssoc    = Nothing
+          , patternMatching = False
+          , multipleMatchClauses = False
           }
   )
  where
@@ -227,20 +227,20 @@ endsWith end = do
                                                , Marked.endPosition   = endPos
                                                }
 
-withFunClauses :: Int -> Doc ann -> Doc ann
-withFunClauses n doc = do
-  prevMultipleFunClauses <- getMultipleFunClauses
-  setMultipleFunClauses (n > 1)
+withMatchClauses :: Int -> Doc ann -> Doc ann
+withMatchClauses n doc = do
+  prevMultipleMatchClauses <- getMultipleMatchClauses
+  setMultipleMatchClauses (n > 1)
   doc' <- doc
-  setMultipleFunClauses prevMultipleFunClauses
+  setMultipleMatchClauses prevMultipleMatchClauses
   return doc'
 
 
-setMultipleFunClauses :: Bool -> DocState ()
-setMultipleFunClauses b = modify $ \cfg -> cfg { multipleFunClauses = b }
+setMultipleMatchClauses :: Bool -> DocState ()
+setMultipleMatchClauses b = modify $ \cfg -> cfg { multipleMatchClauses = b }
 
-getMultipleFunClauses :: DocState Bool
-getMultipleFunClauses = multipleFunClauses <$> get
+getMultipleMatchClauses :: DocState Bool
+getMultipleMatchClauses = multipleMatchClauses <$> get
 
 -- @bracketPatternMatching x@ stores the pattern matching state,
 -- pretty-prints @x@, and restores the pattern matching state.

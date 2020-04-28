@@ -319,19 +319,24 @@ instance Pretty Match where
     setPatternMatching True
     arms
       |> NonEmpty.toList
-      |> mapM pretty
+      |> mapM (withMatchClauses numClauses . pretty)
       |> punctuate' separator
       |> vhard
       |> hangBy (-2)
-    where separator = "| "
+   where
+    numClauses = length arms
+    separator  = "| "
 
 instance Pretty MatchArm where
   pretty MatchArm { lhs, rhs } = grouped (pretty lhs) <+> "=>" <> grouped
     (nest $ line <> grouped prettyRhs)
    where
     prettyRhs = do
-      setPatternMatching True
-      pretty rhs
+      multipleMatchClauses <- getMultipleMatchClauses
+      setPatternMatching multipleMatchClauses
+      res <- pretty rhs
+      setPatternMatching False
+      return res
 
 appPrec :: Int
 appPrec = 10

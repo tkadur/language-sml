@@ -117,7 +117,7 @@ instance Pretty FunBind where
   pretty FunBind { clauses } =
     clauses
       |> NonEmpty.toList
-      |> mapM (withFunClauses numClauses . pretty)
+      |> mapM (withMatchClauses numClauses . pretty)
       |> punctuate' separator
       |> vhard
       |> hangBy (-2)
@@ -169,8 +169,8 @@ instance Pretty FunClause where
             )
    where
     prettyBody body = do
-      multipleFunClauses <- getMultipleFunClauses
-      setPatternMatching multipleFunClauses
+      multipleMatchClauses <- getMultipleMatchClauses
+      setPatternMatching multipleMatchClauses
       res <- nest (line <> grouped (pretty body))
       setPatternMatching False
       return res
