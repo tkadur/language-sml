@@ -92,6 +92,7 @@ library:
     - Language.Sml.Ast.Lit
     - Language.Sml.Ast.Lit.Character
     - Language.Sml.Ast.Pat
+    - Language.Sml.Ast.Toplevel
     - Language.Sml.Ast.Typ
     - Language.Sml.Common.Marked
     - Language.Sml.Common.Position
