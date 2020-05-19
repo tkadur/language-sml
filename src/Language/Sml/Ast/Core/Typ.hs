@@ -1,13 +1,9 @@
 module Language.Sml.Ast.Core.Typ where
 
-import           Language.Sml.Ast.Core.Ident.Label
-                                                ( MLabel )
-import           Language.Sml.Ast.Core.Ident.Long
-                                                ( MLong )
-import           Language.Sml.Ast.Core.Ident.TyCon
-                                                ( MTyCon )
-import           Language.Sml.Ast.Core.Ident.TyVar
-                                                ( MTyVar )
+import           Language.Sml.Ast.Ident.Label   ( MLabel )
+import           Language.Sml.Ast.Ident.Long    ( MLong )
+import           Language.Sml.Ast.Ident.TyCon   ( MTyCon )
+import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
 import           Language.Sml.Common.Marked     ( Marked )
 
 type MTyp = Marked Typ

@@ -4,32 +4,23 @@ module Language.Sml.Pretty.Internal.Printers.Identifier where
 
 import qualified Data.Text                     as Text
 
-import           Language.Sml.Ast.Core.Ident.Label
-                                                ( Label )
-import qualified Language.Sml.Ast.Core.Ident.Label
-                                               as Label
-import           Language.Sml.Ast.Core.Ident.Long
-                                                ( Long )
-import qualified Language.Sml.Ast.Core.Ident.Long
-                                               as Long
-import           Language.Sml.Ast.Core.Ident.Op ( Op )
-import qualified Language.Sml.Ast.Core.Ident.Op
-                                               as Op
-import           Language.Sml.Ast.Core.Ident.StructureIdent
+import           Language.Sml.Ast.Ident.Label   ( Label )
+import qualified Language.Sml.Ast.Ident.Label  as Label
+import           Language.Sml.Ast.Ident.Long    ( Long )
+import qualified Language.Sml.Ast.Ident.Long   as Long
+import           Language.Sml.Ast.Ident.Op      ( Op )
+import qualified Language.Sml.Ast.Ident.Op     as Op
+import           Language.Sml.Ast.Ident.StructureIdent
                                                 ( StructureIdent )
-import qualified Language.Sml.Ast.Core.Ident.StructureIdent
+import qualified Language.Sml.Ast.Ident.StructureIdent
                                                as StructureIdent
-import           Language.Sml.Ast.Core.Ident.TyCon
-                                                ( TyCon )
-import qualified Language.Sml.Ast.Core.Ident.TyCon
-                                               as TyCon
-import           Language.Sml.Ast.Core.Ident.TyVar
-                                                ( TyVar )
-import qualified Language.Sml.Ast.Core.Ident.TyVar
-                                               as TyVar
-import           Language.Sml.Ast.Core.Ident.ValueIdent
+import           Language.Sml.Ast.Ident.TyCon   ( TyCon )
+import qualified Language.Sml.Ast.Ident.TyCon  as TyCon
+import           Language.Sml.Ast.Ident.TyVar   ( TyVar )
+import qualified Language.Sml.Ast.Ident.TyVar  as TyVar
+import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( ValueIdent )
-import qualified Language.Sml.Ast.Core.Ident.ValueIdent
+import qualified Language.Sml.Ast.Ident.ValueIdent
                                                as ValueIdent
 import qualified Language.Sml.Common.Positive  as Positive
 import           Language.Sml.Pretty.Internal.Basic

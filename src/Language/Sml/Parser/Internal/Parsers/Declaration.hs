@@ -22,9 +22,8 @@ import           Language.Sml.Ast.Core.Decl     ( Decl
                                                 , MDecl
                                                 )
 import qualified Language.Sml.Ast.Core.Decl    as Decl
-import           Language.Sml.Ast.Core.Ident.TyVar
-                                                ( MTyVar )
-import           Language.Sml.Ast.Core.Ident.ValueIdent
+import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
+import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( MValueIdent )
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic

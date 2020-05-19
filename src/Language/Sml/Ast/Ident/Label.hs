@@ -1,7 +1,6 @@
-module Language.Sml.Ast.Core.Ident.Label where
+module Language.Sml.Ast.Ident.Label where
 
-import           Language.Sml.Ast.Core.Ident.Common
-                                                ( Ident )
+import           Language.Sml.Ast.Ident.Common  ( Ident )
 import           Language.Sml.Common.Marked     ( Marked )
 import           Language.Sml.Common.Positive   ( Positive )
 

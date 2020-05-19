@@ -1,6 +1,6 @@
-module Language.Sml.Ast.Core.Ident.Long where
+module Language.Sml.Ast.Ident.Long where
 
-import           Language.Sml.Ast.Core.Ident.StructureIdent
+import           Language.Sml.Ast.Ident.StructureIdent
                                                 ( MStructureIdent )
 import           Language.Sml.Common.Marked     ( Marked )
 

@@ -25,9 +25,9 @@ import           Language.Sml.Ast.Core.Expr     ( MExpr )
 import qualified Language.Sml.Ast.Core.Expr    as Expr
 import           Language.Sml.Ast.Core.Pat      ( MPat )
 import qualified Language.Sml.Ast.Core.Pat     as Pat
-import           Language.Sml.Ast.Core.Ident.ValueIdent
+import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( ValueIdent )
-import qualified Language.Sml.Ast.Core.Ident.ValueIdent
+import qualified Language.Sml.Ast.Ident.ValueIdent
                                                as ValueIdent
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic

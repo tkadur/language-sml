@@ -1,4 +1,4 @@
-module Language.Sml.Ast.Core.Ident.Op where
+module Language.Sml.Ast.Ident.Op where
 
 import           Language.Sml.Common.Marked     ( Marked )
 

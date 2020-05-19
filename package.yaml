@@ -81,19 +81,23 @@ library:
     - Language.Sml.Ast.Associativity
     - Language.Sml.Ast.Core.Decl
     - Language.Sml.Ast.Core.Expr
-    - Language.Sml.Ast.Core.Ident.Common
-    - Language.Sml.Ast.Core.Ident.Label
-    - Language.Sml.Ast.Core.Ident.Long
-    - Language.Sml.Ast.Core.Ident.Op
-    - Language.Sml.Ast.Core.Ident.StructureIdent
-    - Language.Sml.Ast.Core.Ident.TyCon
-    - Language.Sml.Ast.Core.Ident.TyVar
-    - Language.Sml.Ast.Core.Ident.ValueIdent
     - Language.Sml.Ast.Core.Lit
     - Language.Sml.Ast.Core.Lit.Character
     - Language.Sml.Ast.Core.Pat
-    - Language.Sml.Ast.Toplevel
     - Language.Sml.Ast.Core.Typ
+    - Language.Sml.Ast.Ident.Common
+    - Language.Sml.Ast.Ident.Label
+    - Language.Sml.Ast.Ident.Long
+    - Language.Sml.Ast.Ident.Op
+    - Language.Sml.Ast.Ident.StructureIdent
+    - Language.Sml.Ast.Ident.TyCon
+    - Language.Sml.Ast.Ident.TyVar
+    - Language.Sml.Ast.Ident.ValueIdent
+    - Language.Sml.Ast.Module.Signature.Decl
+    - Language.Sml.Ast.Module.Signature.Expr
+    - Language.Sml.Ast.Module.Structure.Decl
+    - Language.Sml.Ast.Module.Structure.Expr
+    - Language.Sml.Ast.Program
     - Language.Sml.Common.Marked
     - Language.Sml.Common.Position
     - Language.Sml.Common.Positive

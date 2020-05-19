@@ -2,16 +2,13 @@ module Language.Sml.Ast.Core.Decl where
 
 import           Language.Sml.Ast.Core.Expr     ( MExpr )
 import           Language.Sml.Ast.Core.Pat      ( MPat )
-import           Language.Sml.Ast.Core.Ident.Long
-                                                ( MLong )
-import           Language.Sml.Ast.Core.Ident.Op ( MOp )
-import           Language.Sml.Ast.Core.Ident.StructureIdent
+import           Language.Sml.Ast.Ident.Long    ( MLong )
+import           Language.Sml.Ast.Ident.Op      ( MOp )
+import           Language.Sml.Ast.Ident.StructureIdent
                                                 ( MStructureIdent )
-import           Language.Sml.Ast.Core.Ident.TyVar
-                                                ( MTyVar )
-import           Language.Sml.Ast.Core.Ident.TyCon
-                                                ( MTyCon )
-import           Language.Sml.Ast.Core.Ident.ValueIdent
+import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
+import           Language.Sml.Ast.Ident.TyCon   ( MTyCon )
+import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( MValueIdent )
 import           Language.Sml.Ast.Core.Typ      ( MTyp )
 import           Language.Sml.Common.Marked     ( Marked )

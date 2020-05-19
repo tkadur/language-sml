@@ -1,12 +1,10 @@
 module Language.Sml.Ast.Core.Expr where
 
 import           Language.Sml.Ast.Associativity ( Associativity )
-import           Language.Sml.Ast.Core.Ident.Label
-                                                ( MLabel )
-import           Language.Sml.Ast.Core.Ident.Long
-                                                ( MLong )
-import           Language.Sml.Ast.Core.Ident.Op ( MOp )
-import           Language.Sml.Ast.Core.Ident.ValueIdent
+import           Language.Sml.Ast.Ident.Label   ( MLabel )
+import           Language.Sml.Ast.Ident.Long    ( MLong )
+import           Language.Sml.Ast.Ident.Op      ( MOp )
+import           Language.Sml.Ast.Ident.ValueIdent
                                                 ( MValueIdent )
 import {-# SOURCE #-} Language.Sml.Ast.Core.Decl
                                                 ( MDecl )

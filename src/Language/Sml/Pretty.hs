@@ -34,8 +34,8 @@ import           Language.Sml.Pretty.Internal.Printers.Pattern
 import           Language.Sml.Pretty.Internal.Printers.Type
                                                as Type
                                                 ( )
-import           Language.Sml.Pretty.Internal.Printers.Toplevel
-                                               as Toplevel
+import           Language.Sml.Pretty.Internal.Printers.Program
+                                               as Program
                                                 ( )
 
 data Config =

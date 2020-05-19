@@ -4,7 +4,7 @@ module Language.Sml.Parser
   , parseTest
   , showError
   , runParser
-  , toplevel
+  , program
   , declaration
   , expression
   , pattern
@@ -27,8 +27,8 @@ import           Language.Sml.Parser.Internal.Parsers.Expression
                                                 ( expression )
 import           Language.Sml.Parser.Internal.Parsers.Pattern
                                                 ( pattern )
-import           Language.Sml.Parser.Internal.Parsers.Toplevel
-                                                ( toplevel )
+import           Language.Sml.Parser.Internal.Parsers.Program
+                                                ( program )
 import           Language.Sml.Parser.Internal.Parsers.Type
                                                 ( typ )
 import           Language.Sml.Parser.Internal.Basic
