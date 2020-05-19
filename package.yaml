@@ -79,21 +79,21 @@ library:
   exposed-modules:
     - Language.Sml
     - Language.Sml.Ast.Associativity
-    - Language.Sml.Ast.Decl
-    - Language.Sml.Ast.Expr
-    - Language.Sml.Ast.Ident.Common
-    - Language.Sml.Ast.Ident.Label
-    - Language.Sml.Ast.Ident.Long
-    - Language.Sml.Ast.Ident.Op
-    - Language.Sml.Ast.Ident.StructureIdent
-    - Language.Sml.Ast.Ident.TyCon
-    - Language.Sml.Ast.Ident.TyVar
-    - Language.Sml.Ast.Ident.ValueIdent
-    - Language.Sml.Ast.Lit
-    - Language.Sml.Ast.Lit.Character
-    - Language.Sml.Ast.Pat
+    - Language.Sml.Ast.Core.Decl
+    - Language.Sml.Ast.Core.Expr
+    - Language.Sml.Ast.Core.Ident.Common
+    - Language.Sml.Ast.Core.Ident.Label
+    - Language.Sml.Ast.Core.Ident.Long
+    - Language.Sml.Ast.Core.Ident.Op
+    - Language.Sml.Ast.Core.Ident.StructureIdent
+    - Language.Sml.Ast.Core.Ident.TyCon
+    - Language.Sml.Ast.Core.Ident.TyVar
+    - Language.Sml.Ast.Core.Ident.ValueIdent
+    - Language.Sml.Ast.Core.Lit
+    - Language.Sml.Ast.Core.Lit.Character
+    - Language.Sml.Ast.Core.Pat
     - Language.Sml.Ast.Toplevel
-    - Language.Sml.Ast.Typ
+    - Language.Sml.Ast.Core.Typ
     - Language.Sml.Common.Marked
     - Language.Sml.Common.Position
     - Language.Sml.Common.Positive

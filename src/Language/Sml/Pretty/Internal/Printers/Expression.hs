@@ -7,7 +7,7 @@ import qualified Data.List.NonEmpty            as NonEmpty
 import           Language.Sml.Ast.Associativity
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
-import           Language.Sml.Ast.Expr
+import           Language.Sml.Ast.Core.Expr
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Pretty.Internal.Basic
 import {-# SOURCE #-} Language.Sml.Pretty.Internal.Printers.Declaration

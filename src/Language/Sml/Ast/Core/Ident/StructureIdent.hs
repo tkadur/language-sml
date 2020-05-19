@@ -1,6 +1,7 @@
-module Language.Sml.Ast.Ident.StructureIdent where
+module Language.Sml.Ast.Core.Ident.StructureIdent where
 
-import           Language.Sml.Ast.Ident.Common  ( Alphanumeric )
+import           Language.Sml.Ast.Core.Ident.Common
+                                                ( Alphanumeric )
 import           Language.Sml.Common.Marked     ( Marked )
 
 type MStructureIdent = Marked StructureIdent

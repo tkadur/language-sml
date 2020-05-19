@@ -21,13 +21,13 @@ import qualified Text.Show
 import           Language.Sml.Ast.Associativity ( Associativity )
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
-import           Language.Sml.Ast.Expr          ( MExpr )
-import qualified Language.Sml.Ast.Expr         as Expr
-import           Language.Sml.Ast.Pat           ( MPat )
-import qualified Language.Sml.Ast.Pat          as Pat
-import           Language.Sml.Ast.Ident.ValueIdent
+import           Language.Sml.Ast.Core.Expr     ( MExpr )
+import qualified Language.Sml.Ast.Core.Expr    as Expr
+import           Language.Sml.Ast.Core.Pat      ( MPat )
+import qualified Language.Sml.Ast.Core.Pat     as Pat
+import           Language.Sml.Ast.Core.Ident.ValueIdent
                                                 ( ValueIdent )
-import qualified Language.Sml.Ast.Ident.ValueIdent
+import qualified Language.Sml.Ast.Core.Ident.ValueIdent
                                                as ValueIdent
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic

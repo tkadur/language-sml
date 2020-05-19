@@ -11,8 +11,8 @@ import           Text.Megaparsec                ( lookAhead
                                                 , try
                                                 )
 
-import           Language.Sml.Ast.Expr          ( MExpr )
-import qualified Language.Sml.Ast.Expr         as Expr
+import           Language.Sml.Ast.Core.Expr     ( MExpr )
+import qualified Language.Sml.Ast.Core.Expr    as Expr
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
 import qualified Language.Sml.Parser.Internal.FixityTable

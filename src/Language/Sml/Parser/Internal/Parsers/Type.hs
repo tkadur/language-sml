@@ -16,10 +16,12 @@ import qualified Control.Monad.Combinators.Expr
 import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
-import           Language.Sml.Ast.Ident.Long    ( MLong )
-import           Language.Sml.Ast.Ident.TyCon   ( MTyCon )
-import           Language.Sml.Ast.Typ           ( MTyp )
-import qualified Language.Sml.Ast.Typ          as Typ
+import           Language.Sml.Ast.Core.Ident.Long
+                                                ( MLong )
+import           Language.Sml.Ast.Core.Ident.TyCon
+                                                ( MTyCon )
+import           Language.Sml.Ast.Core.Typ      ( MTyp )
+import qualified Language.Sml.Ast.Core.Typ     as Typ
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
 import           Language.Sml.Parser.Internal.Parsers.Identifier

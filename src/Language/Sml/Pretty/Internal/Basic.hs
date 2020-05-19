@@ -237,7 +237,7 @@ withMatchClauses n doc = do
 
 
 setMultipleMatchClauses :: Bool -> DocState ()
-setMultipleMatchClauses b = modify $ \cfg -> cfg { multipleMatchClauses = b }
+setMultipleMatchClauses b = modify' $ \cfg -> cfg { multipleMatchClauses = b }
 
 getMultipleMatchClauses :: DocState Bool
 getMultipleMatchClauses = multipleMatchClauses <$> get
@@ -301,7 +301,7 @@ maybeParen getPrecAssoc prevPrecAssoc doc = do
           _ -> parens doc
 
 setPatternMatching :: Bool -> DocState ()
-setPatternMatching b = modify $ \cfg -> cfg { patternMatching = b }
+setPatternMatching b = modify' $ \cfg -> cfg { patternMatching = b }
 
 getPatternMatching :: DocState Bool
 getPatternMatching = patternMatching <$> get
@@ -311,31 +311,31 @@ getExprPrecAssoc = exprPrecAssoc <$> get
 
 setExprPrecAssoc :: PrecAssoc -> DocState ()
 setExprPrecAssoc precAssoc =
-  modify $ \cfg -> cfg { exprPrecAssoc = Just precAssoc }
+  modify' $ \cfg -> cfg { exprPrecAssoc = Just precAssoc }
 
 resetExprPrecAssoc :: DocState ()
-resetExprPrecAssoc = modify $ \cfg -> cfg { exprPrecAssoc = Nothing }
+resetExprPrecAssoc = modify' $ \cfg -> cfg { exprPrecAssoc = Nothing }
 
 getTypPrecAssoc :: DocState (Maybe PrecAssoc)
 getTypPrecAssoc = typPrecAssoc <$> get
 
 setTypPrecAssoc :: PrecAssoc -> DocState ()
 setTypPrecAssoc precAssoc =
-  modify $ \cfg -> cfg { typPrecAssoc = Just precAssoc }
+  modify' $ \cfg -> cfg { typPrecAssoc = Just precAssoc }
 
 resetTypPrecAssoc :: DocState ()
-resetTypPrecAssoc = modify $ \cfg -> cfg { typPrecAssoc = Nothing }
+resetTypPrecAssoc = modify' $ \cfg -> cfg { typPrecAssoc = Nothing }
 
 setCurrentPosition :: (Position, Position) -> DocState ()
 setCurrentPosition position =
-  modify $ \cfg@Config {..} -> cfg { positions = position : positions }
+  modify' $ \cfg@Config {..} -> cfg { positions = position : positions }
 
 getCurrentPosition :: DocState (Maybe (Position, Position))
 getCurrentPosition = head <<$>> nonEmpty <$> positions <$> get
 
 resetCurrentPosition :: DocState ()
 resetCurrentPosition =
-  modify $ \cfg@Config {..} -> cfg { positions = drop 1 positions }
+  modify' $ \cfg@Config {..} -> cfg { positions = drop 1 positions }
 
 -- Pretty print a list of marked things, leaving 1 newline between them.
 -- Wherever there were >1 newlines between things in the original text, leave

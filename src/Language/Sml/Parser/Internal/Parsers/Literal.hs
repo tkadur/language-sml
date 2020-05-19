@@ -3,9 +3,10 @@ module Language.Sml.Parser.Internal.Parsers.Literal where
 import           Control.Monad.Combinators      ( choice )
 import           Data.Scientific                ( Scientific )
 
-import           Language.Sml.Ast.Lit.Character ( Character )
-import           Language.Sml.Ast.Lit           ( Lit )
-import qualified Language.Sml.Ast.Lit          as Lit
+import           Language.Sml.Ast.Core.Lit.Character
+                                                ( Character )
+import           Language.Sml.Ast.Core.Lit      ( Lit )
+import qualified Language.Sml.Ast.Core.Lit     as Lit
 import           Language.Sml.Common.Positive   ( Positive )
 import           Language.Sml.Parser.Internal.Basic
 import qualified Language.Sml.Parser.Internal.Token

@@ -21,23 +21,32 @@ import qualified Data.HashSet                  as HashSet
 import qualified Data.List.NonEmpty            as NonEmpty
 import           Text.Megaparsec                ( try )
 
-import           Language.Sml.Ast.Ident.Label   ( MLabel )
-import qualified Language.Sml.Ast.Ident.Label  as Label
-import           Language.Sml.Ast.Ident.Long    ( MLong )
-import qualified Language.Sml.Ast.Ident.Long   as Long
-import           Language.Sml.Ast.Ident.Op      ( MOp )
-import qualified Language.Sml.Ast.Ident.Op     as Op
-import           Language.Sml.Ast.Ident.TyCon   ( MTyCon )
-import qualified Language.Sml.Ast.Ident.TyCon  as TyCon
-import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
-import qualified Language.Sml.Ast.Ident.TyVar  as TyVar
-import           Language.Sml.Ast.Ident.StructureIdent
+import           Language.Sml.Ast.Core.Ident.Label
+                                                ( MLabel )
+import qualified Language.Sml.Ast.Core.Ident.Label
+                                               as Label
+import           Language.Sml.Ast.Core.Ident.Long
+                                                ( MLong )
+import qualified Language.Sml.Ast.Core.Ident.Long
+                                               as Long
+import           Language.Sml.Ast.Core.Ident.Op ( MOp )
+import qualified Language.Sml.Ast.Core.Ident.Op
+                                               as Op
+import           Language.Sml.Ast.Core.Ident.TyCon
+                                                ( MTyCon )
+import qualified Language.Sml.Ast.Core.Ident.TyCon
+                                               as TyCon
+import           Language.Sml.Ast.Core.Ident.TyVar
+                                                ( MTyVar )
+import qualified Language.Sml.Ast.Core.Ident.TyVar
+                                               as TyVar
+import           Language.Sml.Ast.Core.Ident.StructureIdent
                                                 ( MStructureIdent )
-import qualified Language.Sml.Ast.Ident.StructureIdent
+import qualified Language.Sml.Ast.Core.Ident.StructureIdent
                                                as StructureIdent
-import           Language.Sml.Ast.Ident.ValueIdent
+import           Language.Sml.Ast.Core.Ident.ValueIdent
                                                 ( MValueIdent )
-import qualified Language.Sml.Ast.Ident.ValueIdent
+import qualified Language.Sml.Ast.Core.Ident.ValueIdent
                                                as ValueIdent
 import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Common.Marked    as Marked

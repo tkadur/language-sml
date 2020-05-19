@@ -1,16 +1,19 @@
-module Language.Sml.Ast.Decl where
+module Language.Sml.Ast.Core.Decl where
 
-import           Language.Sml.Ast.Expr          ( MExpr )
-import           Language.Sml.Ast.Pat           ( MPat )
-import           Language.Sml.Ast.Ident.Long    ( MLong )
-import           Language.Sml.Ast.Ident.Op      ( MOp )
-import           Language.Sml.Ast.Ident.StructureIdent
+import           Language.Sml.Ast.Core.Expr     ( MExpr )
+import           Language.Sml.Ast.Core.Pat      ( MPat )
+import           Language.Sml.Ast.Core.Ident.Long
+                                                ( MLong )
+import           Language.Sml.Ast.Core.Ident.Op ( MOp )
+import           Language.Sml.Ast.Core.Ident.StructureIdent
                                                 ( MStructureIdent )
-import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
-import           Language.Sml.Ast.Ident.TyCon   ( MTyCon )
-import           Language.Sml.Ast.Ident.ValueIdent
+import           Language.Sml.Ast.Core.Ident.TyVar
+                                                ( MTyVar )
+import           Language.Sml.Ast.Core.Ident.TyCon
+                                                ( MTyCon )
+import           Language.Sml.Ast.Core.Ident.ValueIdent
                                                 ( MValueIdent )
-import           Language.Sml.Ast.Typ           ( MTyp )
+import           Language.Sml.Ast.Core.Typ      ( MTyp )
 import           Language.Sml.Common.Marked     ( Marked )
 
 type MDecl = Marked Decl

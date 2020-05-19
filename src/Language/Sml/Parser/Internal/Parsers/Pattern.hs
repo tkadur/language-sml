@@ -7,8 +7,8 @@ import           Control.Monad.Combinators      ( choice
                                                 )
 import           Text.Megaparsec                ( try )
 
-import           Language.Sml.Ast.Pat           ( MPat )
-import qualified Language.Sml.Ast.Pat          as Pat
+import           Language.Sml.Ast.Core.Pat      ( MPat )
+import qualified Language.Sml.Ast.Core.Pat     as Pat
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
 import qualified Language.Sml.Parser.Internal.FixityTable

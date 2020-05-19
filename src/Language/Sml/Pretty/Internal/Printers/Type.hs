@@ -7,7 +7,7 @@ import qualified Data.List.NonEmpty            as NonEmpty
 import           Language.Sml.Ast.Associativity
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
-import           Language.Sml.Ast.Typ
+import           Language.Sml.Ast.Core.Typ
 import           Language.Sml.Pretty.Internal.Basic
 import           Language.Sml.Pretty.Internal.Printers.Identifier
                                                 ( )

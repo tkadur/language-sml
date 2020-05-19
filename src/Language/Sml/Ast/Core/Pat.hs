@@ -1,13 +1,15 @@
-module Language.Sml.Ast.Pat where
+module Language.Sml.Ast.Core.Pat where
 
 import           Language.Sml.Ast.Associativity ( Associativity )
-import           Language.Sml.Ast.Ident.Label   ( MLabel )
-import           Language.Sml.Ast.Ident.Long    ( MLong )
-import           Language.Sml.Ast.Ident.Op      ( MOp )
-import           Language.Sml.Ast.Ident.ValueIdent
+import           Language.Sml.Ast.Core.Ident.Label
+                                                ( MLabel )
+import           Language.Sml.Ast.Core.Ident.Long
+                                                ( MLong )
+import           Language.Sml.Ast.Core.Ident.Op ( MOp )
+import           Language.Sml.Ast.Core.Ident.ValueIdent
                                                 ( MValueIdent )
-import           Language.Sml.Ast.Lit           ( Lit )
-import           Language.Sml.Ast.Typ           ( MTyp )
+import           Language.Sml.Ast.Core.Lit      ( Lit )
+import           Language.Sml.Ast.Core.Typ      ( MTyp )
 import           Language.Sml.Common.Marked     ( Marked )
 
 type MPat = Marked Pat

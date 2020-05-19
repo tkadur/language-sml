@@ -12,7 +12,7 @@ import qualified Language.Sml.Common.Position               as Position
 import           Language.Sml.Common.Positive                ( Positive )
 import qualified Language.Sml.Common.Positive               as Positive
 
-import           Language.Sml.Ast.Lit.Character
+import           Language.Sml.Ast.Core.Lit.Character
 import           Language.Sml.Lexer.Token
 }
 

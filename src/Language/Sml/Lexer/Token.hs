@@ -2,7 +2,8 @@ module Language.Sml.Lexer.Token where
 
 import           Data.Scientific                ( Scientific )
 
-import           Language.Sml.Ast.Lit.Character ( Character )
+import           Language.Sml.Ast.Core.Lit.Character
+                                                ( Character )
 import           Language.Sml.Common.Positive   ( Positive )
 
 data Token

@@ -6,8 +6,9 @@ import qualified Data.List.NonEmpty            as NonEmpty
 
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
-import           Language.Sml.Ast.Decl
-import           Language.Sml.Ast.Ident.TyVar   ( )
+import           Language.Sml.Ast.Core.Decl
+import           Language.Sml.Ast.Core.Ident.TyVar
+                                                ( )
 import           Language.Sml.Common.Marked     ( Marked )
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Pretty.Internal.Basic

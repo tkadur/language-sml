@@ -4,7 +4,7 @@ module Language.Sml.Pretty.Internal.Printers.Literal where
 
 import           Text.Printf                    ( printf )
 
-import           Language.Sml.Ast.Lit
+import           Language.Sml.Ast.Core.Lit
 import           Language.Sml.Pretty.Internal.Basic
 
 instance Pretty Lit where

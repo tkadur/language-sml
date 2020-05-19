@@ -18,12 +18,13 @@ import           Text.Megaparsec                ( observing
 import           Language.Sml.Ast.Associativity ( Associativity )
 import qualified Language.Sml.Ast.Associativity
                                                as Associativity
-import           Language.Sml.Ast.Decl          ( Decl
+import           Language.Sml.Ast.Core.Decl     ( Decl
                                                 , MDecl
                                                 )
-import qualified Language.Sml.Ast.Decl         as Decl
-import           Language.Sml.Ast.Ident.TyVar   ( MTyVar )
-import           Language.Sml.Ast.Ident.ValueIdent
+import qualified Language.Sml.Ast.Core.Decl    as Decl
+import           Language.Sml.Ast.Core.Ident.TyVar
+                                                ( MTyVar )
+import           Language.Sml.Ast.Core.Ident.ValueIdent
                                                 ( MValueIdent )
 import qualified Language.Sml.Common.Marked    as Marked
 import           Language.Sml.Parser.Internal.Basic
@@ -126,12 +127,13 @@ funClause start = dbg ["declaration", "fun", "funBind", "funClause"] $ do
  where
   -- TODO(tkadur) enforce parens as the standard requires
   infixClause = do
-    -- @try@ to prevent conflict with nonfix clause
     let infixPart = do
           lhs       <- atomicPattern
           infixName <- infixValueIdentifier
           rhs       <- atomicPattern
           return (lhs, infixName, rhs)
+    -- First @try@ to prevent conflict with nonfix clause
+    -- Second @try@ to prevent conflict between unparenthesized and parenthesized infix part
     (lhs, infixName, rhs) <- try (try infixPart <|> parenthesized infixPart)
     infixArgs <- many atomicPattern
     returnTyp <- optional (token_ Token.Colon >> typ)
@@ -286,7 +288,7 @@ localInEnd = dbg ["declaration", "localInEnd"] . marked $ do
     Decl.Infixr { Decl.precedence, Decl.idents } ->
       addToFixityTable precedence idents Associativity.Right
     Decl.Nonfix { Decl.idents } ->
-      modify $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
+      modify' $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
     Decl.Sequence decls -> mapM_ applyFixityDecl (map Marked.value decls)
     _ -> return ()
 
@@ -304,7 +306,7 @@ nonfix :: Parser MDecl
 nonfix = dbg ["declaration", "nonfix"] . marked $ do
   token_ Token.Nonfix
   idents <- some valueIdentifier
-  modify $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
+  modify' $ FixityTable.removeOperators (NonEmpty.map Marked.value idents)
   return Decl.Nonfix { Decl.idents }
 
 infixrDecl :: Parser MDecl
@@ -324,9 +326,9 @@ addToFixityTable :: Maybe Int
                  -> Associativity
                  -> Parser ()
 addToFixityTable precedence idents associativity =
-  modify $ FixityTable.addOperators (NonEmpty.map Marked.value idents)
-                                    associativity
-                                    (fromMaybe 0 precedence)
+  modify' $ FixityTable.addOperators (NonEmpty.map Marked.value idents)
+                                     associativity
+                                     (fromMaybe 0 precedence)
 
 fixityDecl :: Token
            -> Parser (Maybe FixityTable.Precedence, NonEmpty MValueIdent)

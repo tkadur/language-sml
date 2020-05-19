@@ -1,4 +1,4 @@
-module Language.Sml.Ast.Lit.Character where
+module Language.Sml.Ast.Core.Lit.Character where
 
 import           Text.Printf
 

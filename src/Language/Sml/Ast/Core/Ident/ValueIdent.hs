@@ -1,6 +1,7 @@
-module Language.Sml.Ast.Ident.ValueIdent where
+module Language.Sml.Ast.Core.Ident.ValueIdent where
 
-import           Language.Sml.Ast.Ident.Common  ( Ident )
+import           Language.Sml.Ast.Core.Ident.Common
+                                                ( Ident )
 import           Language.Sml.Common.Marked     ( Marked )
 
 type MValueIdent = Marked ValueIdent
